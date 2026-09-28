@@ -11,7 +11,6 @@ export const LOG_CHANNELS = {
   modals: { label: 'MODAL', color: '#fb923c' },
   admin: { label: 'ADMIN', color: '#f472b6' },
   owner: { label: 'OWNER', color: '#60a5fa' },
-  tenant: { label: 'TENANT', color: '#22d3ee' },
   error: { label: 'ERROR', color: '#ef4444' },
 } as const
 

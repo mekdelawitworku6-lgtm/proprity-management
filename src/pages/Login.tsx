@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Building2, Shield, Smartphone, ArrowRight, CheckCircle2, Lock, Mail } from 'lucide-react'
+import { Building2, Shield, ArrowRight, CheckCircle2, Lock, Mail } from 'lucide-react'
 import { useAuth, DEMO_USERS } from '../context/AuthContext'
 import { useLogger } from '../utils/logger'
 import type { UserRole } from '../types'
@@ -14,7 +14,7 @@ export default function Login() {
   const [password, setPassword] = useState('••••••••')
 
   const homeFor = (role: UserRole) =>
-    role === 'owner' ? '/owner/dashboard' : role === 'admin' ? '/admin/dashboard' : '/tenant'
+    role === 'admin' ? '/admin/dashboard' : '/owner/dashboard'
 
   const handleRoleSelect = (role: UserRole) => {
     log.debug('role tab selected', { role })
@@ -56,7 +56,7 @@ export default function Login() {
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-xl px-4">
         <div className="bg-white py-8 px-6 shadow-xl border border-slate-200/80 sm:rounded-3xl sm:px-10">
           {/* Portal Selector Tabs */}
-          <div className="grid grid-cols-3 gap-2 p-1.5 bg-slate-100 rounded-2xl border border-slate-200/70 mb-7">
+          <div className="grid grid-cols-2 gap-2 p-1.5 bg-slate-100 rounded-2xl border border-slate-200/70 mb-7">
             <button
               type="button"
               onClick={() => handleRoleSelect('owner')}
@@ -82,19 +82,6 @@ export default function Login() {
               <Shield className="h-4 w-4 mb-1 text-blue-600" />
               Admin Portal
             </button>
-
-            <button
-              type="button"
-              onClick={() => handleRoleSelect('tenant')}
-              className={`flex flex-col items-center justify-center py-3 px-2 rounded-xl text-xs font-semibold transition ${
-                selectedRole === 'tenant'
-                  ? 'bg-white text-blue-700 shadow-sm'
-                  : 'text-slate-500 hover:text-slate-900'
-              }`}
-            >
-              <Smartphone className="h-4 w-4 mb-1 text-emerald-600" />
-              Tenant App
-            </button>
           </div>
 
           {/* Role Description Banner */}
@@ -109,11 +96,6 @@ export default function Login() {
               {selectedRole === 'admin' && (
                 <p>
                   <strong>Admin Control Dashboard (Possible Tech & Ethio Telecom):</strong> Full oversight of all owners, tenants, digital agreements, dispute arbitration, and Telebirr payment reconciliation.
-                </p>
-              )}
-              {selectedRole === 'tenant' && (
-                <p>
-                  <strong>Tenant Flutter App Simulator:</strong> Browse listings, sign digital agreements, pay rent via Telebirr/CBE, and submit maintenance complaints.
                 </p>
               )}
             </div>
@@ -158,7 +140,7 @@ export default function Login() {
                 type="submit"
                 className="w-full flex items-center justify-center gap-2 rounded-xl bg-[#0F2744] py-3 px-4 text-xs font-bold text-white shadow-md hover:bg-[#1A365D] transition"
               >
-                Sign In to {selectedRole === 'owner' ? 'Owner Portal' : selectedRole === 'admin' ? 'Admin Dashboard' : 'Tenant App'}
+                Sign In to {selectedRole === 'owner' ? 'Owner Portal' : 'Admin Dashboard'}
                 <ArrowRight className="h-4 w-4" />
               </button>
             </div>
@@ -169,7 +151,7 @@ export default function Login() {
             <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400 text-center mb-3">
               Fast 1-Click Demo Evaluation
             </p>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-2 gap-2">
               <button
                 type="button"
                 onClick={() => handleQuickLogin('owner')}
@@ -183,13 +165,6 @@ export default function Login() {
                 className="rounded-xl border border-slate-200 bg-slate-50/80 py-2 px-2 text-[11px] font-semibold text-slate-700 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700 transition"
               >
                 Login as Admin
-              </button>
-              <button
-                type="button"
-                onClick={() => handleQuickLogin('tenant')}
-                className="rounded-xl border border-slate-200 bg-slate-50/80 py-2 px-2 text-[11px] font-semibold text-slate-700 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700 transition"
-              >
-                Launch Tenant App
               </button>
             </div>
           </div>

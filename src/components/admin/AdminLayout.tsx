@@ -13,7 +13,6 @@ import {
   Bell,
   Menu,
   X,
-  Smartphone,
 } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 
@@ -67,15 +66,6 @@ export function AdminLayout() {
               className="flex-1 flex items-center justify-center gap-1 py-1 px-1.5 rounded-lg text-[10px] font-semibold bg-slate-700 border border-slate-600 text-slate-200 hover:text-white hover:bg-slate-600 transition"
             >
               <Building2 className="h-3 w-3 text-blue-400" /> Owner Portal
-            </button>
-            <button
-              onClick={() => {
-                switchRole('tenant')
-                navigate('/tenant')
-              }}
-              className="flex-1 flex items-center justify-center gap-1 py-1 px-1.5 rounded-lg text-[10px] font-semibold bg-slate-700 border border-slate-600 text-slate-200 hover:text-white hover:bg-slate-600 transition"
-            >
-              <Smartphone className="h-3 w-3 text-emerald-400" /> Tenant App
             </button>
           </div>
         </div>

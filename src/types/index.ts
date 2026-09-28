@@ -1,4 +1,4 @@
-export type UserRole = 'owner' | 'admin' | 'tenant'
+export type UserRole = 'owner' | 'admin'
 
 export interface UserProfile {
   id: string
@@ -117,7 +117,7 @@ export interface AuditLogEntry {
   timestamp: string
   actorId: string
   actorName: string
-  actorRole: UserRole
+  actorRole: UserRole | 'tenant'
   action: string
   entityType: 'Property' | 'Agreement' | 'Payment' | 'Complaint' | 'User'
   details: string

@@ -25,9 +25,8 @@ export function ProtectedRoute({ allowedRoles, children }: Props) {
       role: currentUser.role,
       allowedRoles,
     })
-    if (currentUser.role === 'owner') return <Navigate to="/owner/dashboard" replace />
     if (currentUser.role === 'admin') return <Navigate to="/admin/dashboard" replace />
-    if (currentUser.role === 'tenant') return <Navigate to="/tenant" replace />
+    return <Navigate to="/owner/dashboard" replace />
   }
 
   return <>{children}</>

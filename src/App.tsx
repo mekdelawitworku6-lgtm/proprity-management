@@ -26,9 +26,6 @@ import AdminDisputes from './pages/admin/AdminDisputes'
 import AdminPayments from './pages/admin/AdminPayments'
 import AdminAuditLogs from './pages/admin/AdminAuditLogs'
 
-// Tenant Mobile App (Flutter Simulator)
-import TenantApp from './pages/tenant/TenantApp'
-
 function RootRedirect() {
   const { currentUser, isAuthenticated } = useAuth()
   const log = useLogger('navigation', 'RootRedirect')
@@ -37,11 +34,7 @@ function RootRedirect() {
     return <Navigate to="/login" replace />
   }
   const target =
-    currentUser.role === 'owner'
-      ? '/owner/dashboard'
-      : currentUser.role === 'admin'
-        ? '/admin/dashboard'
-        : '/tenant'
+    currentUser.role === 'admin' ? '/admin/dashboard' : '/owner/dashboard'
   log.info(`dispatching ${currentUser.role} to home`, { target })
   return <Navigate to={target} replace />
 }
@@ -105,16 +98,6 @@ function App() {
               <Route path="payments" element={<AdminPayments />} />
               <Route path="audit" element={<AdminAuditLogs />} />
             </Route>
-
-            {/* Tenant Mobile Experience (Flutter App Preview) */}
-            <Route
-              path="/tenant"
-              element={
-                <ProtectedRoute allowedRoles={['tenant', 'owner', 'admin']}>
-                  <TenantApp />
-                </ProtectedRoute>
-              }
-            />
 
             {/* Catch-all */}
             <Route path="*" element={<Navigate to="/" replace />} />

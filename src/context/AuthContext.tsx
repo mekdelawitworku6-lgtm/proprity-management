@@ -23,16 +23,6 @@ export const DEMO_USERS: Record<UserRole, UserProfile> = {
     avatarUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=200&q=80',
     status: 'Active',
   },
-  tenant: {
-    id: 'user-tenant-1',
-    name: 'Yonas Bekele',
-    email: 'tenant@ethio.et',
-    role: 'tenant',
-    phone: '+251-912-478654',
-    organization: 'Tenant Mobile Account',
-    avatarUrl: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=200&q=80',
-    status: 'Active',
-  },
 }
 
 interface AuthContextType {
