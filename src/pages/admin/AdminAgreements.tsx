@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Search, Download, Eye, X, CheckCircle2 } from 'lucide-react'
-import { usePlatform } from '../../context/PlatformContext'
+import { usePlatform } from '../../store/hooks'
 import type { RentalAgreement } from '../../types'
 
 export default function AdminAgreements() {

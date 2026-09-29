@@ -13,14 +13,22 @@ import {
   Bell,
   Menu,
   X,
-  Shield,
 } from 'lucide-react'
-import { useAuth } from '../../context/AuthContext'
+import { useAuth } from '../../store/hooks'
 
 export function OwnerLayout() {
   const [mobileOpen, setMobileOpen] = useState(false)
-  const { currentUser, logout, switchRole } = useAuth()
+  const { currentUser, logout } = useAuth()
   const navigate = useNavigate()
+
+  const displayName = currentUser?.fullName ?? 'Property Owner'
+  const organization = currentUser?.ownerProfile?.companyName ?? 'Property Owner'
+  const initials = displayName
+    .split(' ')
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase())
+    .join('') || 'PO'
 
   const navItems = [
     { to: '/owner/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -32,9 +40,9 @@ export function OwnerLayout() {
     { to: '/owner/settings', label: 'Settings', icon: Settings },
   ]
 
-  const handleLogout = () => {
-    logout()
-    navigate('/login')
+  const handleLogout = async () => {
+    await logout()
+    navigate('/login', { replace: true })
   }
 
   const sidebarContent = (
@@ -50,24 +58,6 @@ export function OwnerLayout() {
             <p className="text-[10px] font-medium text-slate-400 -mt-1 leading-tight">
               Owner Dashboard
             </p>
-          </div>
-        </div>
-
-        {/* Quick Portal Switcher */}
-        <div className="mt-4 p-2 bg-slate-50 rounded-xl border border-slate-100 space-y-1">
-          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-1">
-            Switch View
-          </p>
-          <div className="flex gap-1">
-            <button
-              onClick={() => {
-                switchRole('admin')
-                navigate('/admin/dashboard')
-              }}
-              className="flex-1 flex items-center justify-center gap-1 py-1 px-1.5 rounded-lg text-[10px] font-semibold bg-white border border-slate-200 text-slate-600 hover:text-blue-700 hover:border-blue-300 transition"
-            >
-              <Shield className="h-3 w-3 text-blue-600" /> Admin
-            </button>
           </div>
         </div>
 
@@ -172,11 +162,11 @@ export function OwnerLayout() {
 
             <div className="flex items-center gap-2.5 pl-2 border-l border-slate-200">
               <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-100 text-blue-700 font-bold text-xs">
-                PO
+                {initials}
               </div>
               <div className="hidden text-left md:block">
-                <p className="text-xs font-semibold text-slate-800">{currentUser?.name || 'Abebe Tadesse'}</p>
-                <p className="text-[10px] text-slate-400">{currentUser?.organization || 'Senior Property Owner'}</p>
+                <p className="text-xs font-semibold text-slate-800">{displayName}</p>
+                <p className="text-[10px] text-slate-400">{organization}</p>
               </div>
             </div>
           </div>

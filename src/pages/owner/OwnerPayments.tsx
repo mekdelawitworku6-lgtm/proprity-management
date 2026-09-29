@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Search, Download } from 'lucide-react'
-import { usePlatform } from '../../context/PlatformContext'
+import { usePlatform } from '../../store/hooks'
 import type { Transaction } from '../../types'
 
 export default function OwnerPayments() {

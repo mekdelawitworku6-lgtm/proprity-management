@@ -8,7 +8,7 @@ import {
   DollarSign,
 } from 'lucide-react'
 import { Link } from 'react-router-dom'
-import { usePlatform } from '../../context/PlatformContext'
+import { usePlatform } from '../../store/hooks'
 import { ClassificationSummaries } from '../../components/ClassificationSummaries'
 import { CreateMaintenanceModal } from '../../components/modals/CreateMaintenanceModal'
 import { EditPropertyModal } from '../../components/modals/EditPropertyModal'

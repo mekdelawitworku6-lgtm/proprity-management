@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Search, Download, ShieldCheck, CheckCircle2, Eye, X } from 'lucide-react'
-import { usePlatform } from '../../context/PlatformContext'
+import { usePlatform } from '../../store/hooks'
 import type { RentalAgreement } from '../../types'
 
 export default function OwnerAgreements() {

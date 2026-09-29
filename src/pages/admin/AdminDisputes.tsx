@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { Scale, Search, CheckCircle } from 'lucide-react'
-import { usePlatform } from '../../context/PlatformContext'
+import { usePlatform } from '../../store/hooks'
 import type { ComplaintReport } from '../../types'
 
 export default function AdminDisputes() {

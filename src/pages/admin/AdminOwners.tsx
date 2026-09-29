@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Search, Building2, ShieldCheck, CheckCircle2, UserX } from 'lucide-react'
-import { usePlatform } from '../../context/PlatformContext'
+import { usePlatform } from '../../store/hooks'
 
 export default function AdminOwners() {
   const { registeredOwners, toggleOwnerStatus, properties } = usePlatform()

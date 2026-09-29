@@ -14,12 +14,21 @@ import {
   Menu,
   X,
 } from 'lucide-react'
-import { useAuth } from '../../context/AuthContext'
+import { useAuth } from '../../store/hooks'
 
 export function AdminLayout() {
   const [mobileOpen, setMobileOpen] = useState(false)
-  const { currentUser, logout, switchRole } = useAuth()
+  const { currentUser, logout } = useAuth()
   const navigate = useNavigate()
+
+  const displayName = currentUser?.fullName ?? 'Platform Administrator'
+  const organization = currentUser?.role === 'TELECOM' ? 'Ethio Telecom' : 'Possible Technology'
+  const initials = displayName
+    .split(' ')
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase())
+    .join('') || 'PT'
 
   const navItems = [
     { to: '/admin/dashboard', label: 'Platform Overview', icon: LayoutDashboard },
@@ -31,9 +40,9 @@ export function AdminLayout() {
     { to: '/admin/audit', label: 'Audit Trail & Logs', icon: History },
   ]
 
-  const handleLogout = () => {
-    logout()
-    navigate('/login')
+  const handleLogout = async () => {
+    await logout()
+    navigate('/login', { replace: true })
   }
 
   const sidebarContent = (
@@ -49,24 +58,6 @@ export function AdminLayout() {
             <p className="text-[10px] font-medium text-blue-300 -mt-1 leading-tight">
               & Ethio Telecom Admin
             </p>
-          </div>
-        </div>
-
-        {/* Quick Portal Switcher */}
-        <div className="mt-4 p-2 bg-slate-800/80 rounded-xl border border-slate-700 space-y-1">
-          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-1">
-            Switch Role
-          </p>
-          <div className="flex gap-1">
-            <button
-              onClick={() => {
-                switchRole('owner')
-                navigate('/owner/dashboard')
-              }}
-              className="flex-1 flex items-center justify-center gap-1 py-1 px-1.5 rounded-lg text-[10px] font-semibold bg-slate-700 border border-slate-600 text-slate-200 hover:text-white hover:bg-slate-600 transition"
-            >
-              <Building2 className="h-3 w-3 text-blue-400" /> Owner Portal
-            </button>
           </div>
         </div>
 
@@ -171,11 +162,11 @@ export function AdminLayout() {
 
             <div className="flex items-center gap-2.5 pl-2 border-l border-slate-200">
               <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-600 text-white font-bold text-xs">
-                PT
+                {initials}
               </div>
               <div className="hidden text-left md:block">
-                <p className="text-xs font-semibold text-slate-800">{currentUser?.name || 'Tewodros Kassahun'}</p>
-                <p className="text-[10px] text-slate-400">Chief Platform Overseer</p>
+                <p className="text-xs font-semibold text-slate-800">{displayName}</p>
+                <p className="text-[10px] text-slate-400">{organization}</p>
               </div>
             </div>
           </div>

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Plus, Search, MoreVertical } from 'lucide-react'
-import { usePlatform } from '../../context/PlatformContext'
+import { usePlatform } from '../../store/hooks'
 import type { Tenant } from '../../types'
 import { ClassificationSummaries } from '../../components/ClassificationSummaries'
 import { AddTenantModal } from '../../components/modals/AddTenantModal'

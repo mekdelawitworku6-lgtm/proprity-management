@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Plus, Search, CheckCircle, ArrowUpRight } from 'lucide-react'
-import { usePlatform } from '../../context/PlatformContext'
+import { usePlatform } from '../../store/hooks'
 import type { ComplaintReport } from '../../types'
 import { ClassificationSummaries } from '../../components/ClassificationSummaries'
 import { CreateMaintenanceModal } from '../../components/modals/CreateMaintenanceModal'

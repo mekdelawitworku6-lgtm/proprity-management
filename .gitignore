@@ -12,6 +12,14 @@ dist
 dist-ssr
 *.local
 
+# Backend runs as its own git repository via Docker
+backend/
+
+# Local env files (VITE_API_URL etc.)
+.env
+.env.local
+.env.*.local
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

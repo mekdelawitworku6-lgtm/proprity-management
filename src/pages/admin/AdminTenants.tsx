@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Search, UserX, CheckCircle2, Smartphone } from 'lucide-react'
-import { usePlatform } from '../../context/PlatformContext'
+import { usePlatform } from '../../store/hooks'
 
 export default function AdminTenants() {
   const { tenants, toggleTenantStatus } = usePlatform()
