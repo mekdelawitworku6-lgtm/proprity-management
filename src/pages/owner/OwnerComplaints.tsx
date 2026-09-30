@@ -363,6 +363,13 @@ function ComplaintCard({
           )}
         </span>
 
+        {/* Who actually filed it — differs from the tenant when staff raise it for them. */}
+        <span className="text-slate-400">
+          Filed by{' '}
+          <strong className="font-semibold text-slate-600">{complaint.raisedBy.fullName}</strong>{' '}
+          <span className="text-[10px] uppercase">({ROLE_LABEL[complaint.raisedBy.role]})</span>
+        </span>
+
         <span className="text-slate-400">Reported {formatWhen(complaint.createdAt)}</span>
 
         {complaint._count.responses > 0 && (
@@ -380,6 +387,12 @@ function ComplaintCard({
       {complaint.escalationReason && complaint.escalationStatus === 'ESCALATED' && (
         <p className="mt-2 rounded-lg border border-purple-100 bg-purple-50 p-2 text-xs text-purple-800">
           <strong>Escalation reason:</strong> {complaint.escalationReason}
+          {complaint.escalatedBy && (
+            <span className="mt-0.5 block text-[11px] text-purple-600">
+              Escalated by {complaint.escalatedBy.fullName} (
+              {ROLE_LABEL[complaint.escalatedBy.role]}) on {formatDate(complaint.escalatedAt ?? complaint.updatedAt)}
+            </span>
+          )}
         </p>
       )}
 
@@ -483,6 +496,13 @@ function ComplaintDetailModal({ complaintId, onClose }: { complaintId: string; o
                     No tenant attached — this report is against the property as a whole.
                   </p>
                 )}
+                <p className="mt-1.5 text-[11px] text-slate-500">
+                  Filed by{' '}
+                  <strong className="font-semibold text-slate-700">{data.raisedBy.fullName}</strong>{' '}
+                  <span className="uppercase">({ROLE_LABEL[data.raisedBy.role]})</span>
+                  {' · '}
+                  {formatDate(data.createdAt)}
+                </p>
                 <p className="mt-1.5 text-xs text-slate-600">{data.description}</p>
               </section>
 

@@ -430,6 +430,13 @@ export interface ComplaintTenantRef {
   phoneNumber: string
 }
 
+/** Whoever the backend attributes an action to: the reporter, or who escalated it. */
+export interface ComplaintAuthorRef {
+  id: string
+  fullName: string
+  role: UserRole
+}
+
 /**
  * One message on a complaint thread. `author` is who actually wrote it, which
  * is not always the tenant — a manager or the admin can post on the thread too.
@@ -441,7 +448,7 @@ export interface ComplaintResponseEntry {
   message: string
   attachments: string[]
   createdAt: string
-  author: { id: string; fullName: string; role: UserRole }
+  author: ComplaintAuthorRef
 }
 
 /** A repair job booked against a complaint, with the vendor that will do it. */
@@ -468,7 +475,8 @@ export interface ComplaintWorkOrder {
  *
  * `raisedById` is the account that submitted the report (tenant or manager);
  * `tenantId` is the tenant the report is *about*, derived from the active
- * agreement. They differ when a manager files on a tenant's behalf.
+ * agreement. They differ when a manager files on a tenant's behalf, so the
+ * `raisedBy` relation is what the UI should attribute the report to.
  */
 export interface ComplaintListItem {
   id: string
@@ -496,6 +504,8 @@ export interface ComplaintListItem {
   property: { id: string; name: string }
   unit: { id: string; unitNumber: string } | null
   tenant: ComplaintTenantRef | null
+  raisedBy: ComplaintAuthorRef
+  escalatedBy: ComplaintAuthorRef | null
   _count: { responses: number; workOrders: number }
 }
 
