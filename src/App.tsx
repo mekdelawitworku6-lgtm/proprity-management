@@ -5,6 +5,7 @@ import { ProtectedRoute } from './components/ProtectedRoute'
 import { useLogger } from './utils/logger'
 import { HOME_FOR } from './lib/routes'
 import Login from './pages/Login'
+import RegisterOwner from './pages/RegisterOwner'
 
 // Owner Portal
 import { OwnerLayout } from './components/owner/OwnerLayout'
@@ -64,6 +65,9 @@ function App() {
       <Routes>
         {/* Public Login Route */}
         <Route path="/login" element={<Login />} />
+
+        {/* Public Owner Self-Registration */}
+        <Route path="/register" element={<RegisterOwner />} />
 
         {/* Root Dispatcher */}
         <Route path="/" element={<RootRedirect />} />

@@ -1,6 +1,9 @@
 import { api, unwrapEnvelope } from './api'
 import type {
+  AgreementFilter,
+  AgreementSummary,
   CreatePropertyPayload,
+  OwnerBalances,
   OwnerDashboard,
   Paginated,
   Property,
@@ -8,7 +11,10 @@ import type {
   PropertyDetail,
   PropertyFilter,
   PublicUser,
+  RegisterOwnerPayload,
+  RegisterResponse,
   UpdatePropertyPayload,
+  UploadedFile,
 } from '../types/api'
 
 export const authApi = api.injectEndpoints({
@@ -17,6 +23,12 @@ export const authApi = api.injectEndpoints({
       query: () => ({ url: '/auth/me' }),
       transformResponse: unwrapEnvelope,
       providesTags: ['Property'],
+    }),
+
+    /** Owner self-registration. The server sets approvalStatus=PENDING for owners. */
+    register: builder.mutation<RegisterResponse, RegisterOwnerPayload>({
+      query: (body) => ({ url: '/auth/register', method: 'POST', body }),
+      transformResponse: unwrapEnvelope,
     }),
   }),
   overrideExisting: false,
@@ -67,16 +79,49 @@ export const propertyApi = api.injectEndpoints({
       transformResponse: unwrapEnvelope,
       providesTags: ['Dashboard'],
     }),
+
+    /**
+     * Leases scoped to the signed-in owner. The Tenants page derives its
+     * roster from these, so an owner with no leases correctly shows empty.
+     */
+    getAgreements: builder.query<Paginated<AgreementSummary>, AgreementFilter | void>({
+      query: (filter) => ({ url: '/agreements', params: filter ?? {} }),
+      transformResponse: unwrapEnvelope,
+      providesTags: ['Agreement'],
+    }),
+
+    getOwnerBalances: builder.query<OwnerBalances, void>({
+      query: () => ({ url: '/invoices/balances' }),
+      transformResponse: unwrapEnvelope,
+      providesTags: ['Balance'],
+    }),
+
+    /**
+     * Multipart upload for property photos. Returns the public /uploads URLs
+     * to store in the property's photos array.
+     */
+    uploadPropertyPhotos: builder.mutation<UploadedFile[], File[]>({
+      query: (files) => {
+        const form = new FormData()
+        for (const file of files) form.append('files', file)
+        return { url: '/files/upload/properties', method: 'POST', body: form }
+      },
+      transformResponse: unwrapEnvelope,
+    }),
   }),
   overrideExisting: false,
 })
 
 export const {
   useCurrentUserQuery,
+  useRegisterMutation,
   useGetPropertiesQuery,
   useGetPropertyQuery,
   useCreatePropertyMutation,
   useUpdatePropertyMutation,
   useDeletePropertyMutation,
   useGetOwnerDashboardQuery,
+  useGetAgreementsQuery,
+  useGetOwnerBalancesQuery,
+  useUploadPropertyPhotosMutation,
 } = { ...authApi, ...propertyApi }

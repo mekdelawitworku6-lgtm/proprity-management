@@ -140,6 +140,29 @@ export interface LoginResponse {
   tokens: AuthTokens
 }
 
+/**
+ * POST /auth/register body. The backend only accepts OWNER or TENANT here —
+ * ADMIN/TELECOM accounts are provisioned internally, never self-registered.
+ */
+export interface RegisterOwnerPayload {
+  role: 'OWNER'
+  fullName: string
+  /** Ethiopian mobile, e.g. 0911223344 or +251911223344. Required. */
+  phoneNumber: string
+  email?: string
+  /** Server rule: at least 8 characters, containing both a letter and a digit. */
+  password: string
+  language?: Language
+  /** Owners only. */
+  companyName?: string
+}
+
+/** Register returns tokens too, but OWNER_AUTO_APPROVE is off, so the account lands as PENDING. */
+export interface RegisterResponse {
+  user: PublicUser
+  tokens: AuthTokens
+}
+
 /** Derived from `units` on GET /properties; replaces the frontend's totalUnits/occupiedUnits. */
 export interface UnitSummary {
   total: number
@@ -278,4 +301,128 @@ export interface OwnerDashboardTotals {
 export interface OwnerDashboard {
   properties: OwnerDashboardProperty[]
   totals: OwnerDashboardTotals
+}
+
+/**
+ * GET /admin/users returns toPublicUser, which keeps the Prisma `_count`
+ * the list query includes. Counts are platform-wide per user.
+ */
+export interface AdminUser extends PublicUser {
+  _count: {
+    properties: number
+    tenantAgreements: number
+    ownerAgreements: number
+  }
+}
+
+/** AdminUserFilterDto (extends PaginationDto). */
+export interface AdminUserFilter {
+  page?: number
+  limit?: number
+  role?: UserRole
+  approvalStatus?: ApprovalStatus
+  isSuspended?: boolean
+  search?: string
+}
+
+/** Notification model. `type` is a MessageKey string, not a Prisma enum. */
+export interface AppNotification {
+  id: string
+  userId: string
+  type: string
+  title: string
+  body: string
+  data: Record<string, unknown> | null
+  channels: string[]
+  readAt: string | null
+  createdAt: string
+}
+
+/** NotificationFilterDto (extends PaginationDto). */
+export interface NotificationFilter {
+  page?: number
+  limit?: number
+  unreadOnly?: boolean
+}
+
+export interface AgreementPartyRef {
+  id: string
+  fullName: string
+  phoneNumber: string
+}
+
+/** GET /agreements rows omit `content` (the signed body) but carry these relations. */
+export interface AgreementSummary {
+  id: string
+  referenceNo: string
+  unitId: string
+  propertyId: string
+  tenantId: string
+  ownerId: string
+  startDate: string
+  endDate: string
+  rentAmount: number
+  depositAmount: number
+  currency: string
+  paymentDueDay: number
+  status: AgreementStatus
+  createdAt: string
+  unit: { id: string; unitNumber: string; type: UnitType }
+  property: { id: string; name: string; address: string; city: string; subCity: string | null }
+  tenant: AgreementPartyRef
+  owner: AgreementPartyRef
+}
+
+/** AgreementFilterDto (extends PaginationDto). */
+export interface AgreementFilter {
+  page?: number
+  limit?: number
+  status?: AgreementStatus
+  propertyId?: string
+  unitId?: string
+  tenantId?: string
+}
+
+/** Tenant credit is what a tenant OWES; there is no prepaid/credit field in the API. */
+export interface TenantBalance {
+  tenant: AgreementPartyRef
+  outstanding: number
+  overdueCount: number
+  oldestDueDate: string
+}
+
+export interface OwnerBalances {
+  totalOutstanding: number
+  tenants: TenantBalance[]
+}
+
+/** POST /files/upload/:folder */
+export interface UploadedFile {
+  url: string
+  originalName: string
+  mimeType: string
+  size: number
+}
+
+/** GET /admin/users/:id adds relations and activity counts to the public user. */
+export interface AdminUserDetail extends PublicUser {
+  employer: { id: string; fullName: string } | null
+  properties: { id: string; name: string; city: string; isActive: boolean }[]
+  tenantAgreements: {
+    id: string
+    referenceNo: string
+    status: AgreementStatus
+    startDate: string
+    endDate: string
+  }[]
+  ownerAgreements: { id: string; referenceNo: string; status: AgreementStatus }[]
+  _count: {
+    properties: number
+    tenantAgreements: number
+    ownerAgreements: number
+    tenantComplaints: number
+    ownerComplaints: number
+    tenantPayments: number
+    ownerPayments: number
+  }
 }

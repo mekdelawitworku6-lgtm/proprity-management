@@ -1,5 +1,21 @@
 import { request } from './client'
-import type { AuthTokens, LoginPayload, LoginResponse, PublicUser } from '../types/api'
+import type {
+  AuthTokens,
+  LoginPayload,
+  LoginResponse,
+  PublicUser,
+  RegisterOwnerPayload,
+  RegisterResponse,
+} from '../types/api'
+
+/** POST /auth/register — public. Self-service signup for property owners (and tenants). */
+export function registerRequest(payload: RegisterOwnerPayload): Promise<RegisterResponse> {
+  return request<RegisterResponse>('/auth/register', {
+    method: 'POST',
+    body: payload,
+    skipAuth: true,
+  })
+}
 
 /** POST /auth/login — public. Accepts phone number or email as identifier. */
 export function loginRequest(payload: LoginPayload): Promise<LoginResponse> {

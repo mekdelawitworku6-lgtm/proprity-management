@@ -10,16 +10,24 @@ import {
   LogOut,
   LayoutDashboard,
   Search,
-  Bell,
   Menu,
   X,
 } from 'lucide-react'
 import { useAuth } from '../../store/hooks'
+import { NotificationBell } from '../NotificationBell'
+import { useGetAdminUsersQuery } from '../../store/adminApi'
 
 export function AdminLayout() {
   const [mobileOpen, setMobileOpen] = useState(false)
   const { currentUser, logout } = useAuth()
   const navigate = useNavigate()
+
+  // Drives the "Owner Requests" badge; PENDING owners are the request queue.
+  const { data: pendingOwners } = useGetAdminUsersQuery(
+    { role: 'OWNER', approvalStatus: 'PENDING', limit: 1 },
+    { refetchOnMountOrArgChange: true }
+  )
+  const pendingCount = pendingOwners?.total ?? 0
 
   const displayName = currentUser?.fullName ?? 'Platform Administrator'
   const organization = currentUser?.role === 'TELECOM' ? 'Ethio Telecom' : 'Possible Technology'
@@ -31,13 +39,13 @@ export function AdminLayout() {
     .join('') || 'PT'
 
   const navItems = [
-    { to: '/admin/dashboard', label: 'Platform Overview', icon: LayoutDashboard },
-    { to: '/admin/owners', label: 'Property Owners', icon: Building2 },
-    { to: '/admin/tenants', label: 'All Tenants', icon: Users },
-    { to: '/admin/agreements', label: 'Agreement Registry', icon: FileSignature },
-    { to: '/admin/disputes', label: 'Escalated Disputes', icon: Scale },
-    { to: '/admin/payments', label: 'Ethio Telecom Payments', icon: Receipt },
-    { to: '/admin/audit', label: 'Audit Trail & Logs', icon: History },
+    { to: '/admin/dashboard', label: 'Platform Overview', icon: LayoutDashboard, badge: 0 },
+    { to: '/admin/owners', label: 'Owner Requests', icon: Building2, badge: pendingCount },
+    { to: '/admin/tenants', label: 'All Tenants', icon: Users, badge: 0 },
+    { to: '/admin/agreements', label: 'Agreement Registry', icon: FileSignature, badge: 0 },
+    { to: '/admin/disputes', label: 'Escalated Disputes', icon: Scale, badge: 0 },
+    { to: '/admin/payments', label: 'Ethio Telecom Payments', icon: Receipt, badge: 0 },
+    { to: '/admin/audit', label: 'Audit Trail & Logs', icon: History, badge: 0 },
   ]
 
   const handleLogout = async () => {
@@ -63,7 +71,7 @@ export function AdminLayout() {
 
         {/* Nav list */}
         <nav className="mt-5 flex flex-col gap-1">
-          {navItems.map(({ to, label, icon: Icon }) => (
+          {navItems.map(({ to, label, icon: Icon, badge }) => (
             <NavLink
               key={to}
               to={to}
@@ -78,7 +86,12 @@ export function AdminLayout() {
               }
             >
               <Icon className="h-4 w-4" />
-              {label}
+              <span className="flex-1">{label}</span>
+              {badge > 0 && (
+                <span className="rounded-md bg-rose-500 px-1.5 py-0.5 text-[9px] font-bold text-white">
+                  {badge}
+                </span>
+              )}
             </NavLink>
           ))}
         </nav>
@@ -152,13 +165,7 @@ export function AdminLayout() {
               />
             </div>
 
-            <button
-              className="relative rounded-lg p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-700 transition"
-              aria-label="Notifications"
-            >
-              <Bell className="h-4 w-4" />
-              <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-rose-500 ring-2 ring-white" />
-            </button>
+            <NotificationBell />
 
             <div className="flex items-center gap-2.5 pl-2 border-l border-slate-200">
               <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-600 text-white font-bold text-xs">

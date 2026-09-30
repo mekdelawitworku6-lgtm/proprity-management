@@ -1,258 +1,282 @@
-import { useState } from 'react'
-import { Plus, Search, MoreVertical } from 'lucide-react'
-import { usePlatform } from '../../store/hooks'
-import type { Tenant } from '../../types'
-import { ClassificationSummaries } from '../../components/ClassificationSummaries'
-import { AddTenantModal } from '../../components/modals/AddTenantModal'
+import { useDeferredValue, useState } from 'react'
+import { AlertCircle, Building2, Loader2, Search, Users } from 'lucide-react'
+import { useGetAgreementsQuery, useGetOwnerBalancesQuery } from '../../store/propertyApi'
+import { toErrorMessage } from '../../store/api'
+import { useLogger } from '../../utils/logger'
+import type { AgreementStatus } from '../../types/api'
+
+const PAGE_SIZE = 10
+
+type StatusFilter = 'ACTIVE' | 'PENDING_SIGNATURE' | 'ALL'
+
+const STATUS_FILTERS: { key: StatusFilter; label: string }[] = [
+  { key: 'ACTIVE', label: 'Active leases' },
+  { key: 'PENDING_SIGNATURE', label: 'Awaiting signature' },
+  { key: 'ALL', label: 'All leases' },
+]
+
+const STATUS_BADGE: Partial<Record<AgreementStatus, string>> = {
+  ACTIVE: 'bg-emerald-50 text-emerald-700',
+  PENDING_SIGNATURE: 'bg-amber-50 text-amber-700',
+  EXPIRED: 'bg-slate-100 text-slate-500',
+  TERMINATED: 'bg-rose-50 text-rose-700',
+  CANCELLED: 'bg-slate-100 text-slate-500',
+  RENEWED: 'bg-blue-50 text-blue-700',
+}
+
+function formatDate(iso: string): string {
+  return new Date(iso).toLocaleDateString()
+}
 
 export default function OwnerTenants() {
-  const { tenants } = usePlatform()
-  const [searchQuery, setSearchQuery] = useState('')
-  const [statusFilter, setStatusFilter] = useState('All Status')
-  const [tenantTypeFilter, setTenantTypeFilter] = useState('All Tenant Types')
-  const [buildingFilter, setBuildingFilter] = useState('All Buildings')
-  const [paymentFilter, setPaymentFilter] = useState('All Payment Status')
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false)
+  const log = useLogger('owner', 'OwnerTenants')
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('ACTIVE')
+  const [searchInput, setSearchInput] = useState('')
+  const search = useDeferredValue(searchInput)
+  const [page, setPage] = useState(1)
 
-  // Counts
-  const totalCount = tenants.length
-  const individualCount = tenants.filter((t) => t.tenantType === 'Individual').length
-  const familyCount = tenants.filter((t) => t.tenantType === 'Family').length
-  const corporateCount = tenants.filter((t) => t.tenantType === 'Corporate').length
-  const latePaymentCount = tenants.filter((t) => t.paymentStatus === 'Late').length
+  const { data, isLoading, isFetching, error } = useGetAgreementsQuery(
+    {
+      ...(statusFilter === 'ALL' ? {} : { status: statusFilter }),
+      page,
+      limit: PAGE_SIZE,
+    },
+    { refetchOnMountOrArgChange: true }
+  )
 
-  // Filter logic
-  const filteredTenants = tenants.filter((t) => {
-    const matchesSearch =
-      t.tenantName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      t.unitNo.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      t.buildingName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      t.contactEmail.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      t.contactPhone.includes(searchQuery)
+  // Outstanding balances are keyed by tenant, so the roster can show what each owes.
+  const { data: balances } = useGetOwnerBalancesQuery()
+  const outstandingByTenant = new Map(
+    (balances?.tenants ?? []).map((entry) => [entry.tenant.id, entry])
+  )
 
-    const matchesStatus =
-      statusFilter === 'All Status' ? true : t.status === statusFilter
+  const leases = data?.docs ?? []
+  const term = search.trim().toLowerCase()
+  const filtered = term
+    ? leases.filter((lease) =>
+        [
+          lease.tenant.fullName,
+          lease.tenant.phoneNumber,
+          lease.property.name,
+          lease.unit.unitNumber,
+          lease.referenceNo,
+        ].some((value) => value?.toLowerCase().includes(term))
+      )
+    : leases
 
-    const matchesTenantType =
-      tenantTypeFilter === 'All Tenant Types' ? true : t.tenantType === tenantTypeFilter
-
-    const matchesBuilding =
-      buildingFilter === 'All Buildings' ? true : t.buildingName === buildingFilter
-
-    const matchesPayment =
-      paymentFilter === 'All Payment Status' ? true : t.paymentStatus === paymentFilter
-
-    return matchesSearch && matchesStatus && matchesTenantType && matchesBuilding && matchesPayment
-  })
-
-  const getTenantTypeBadge = (type: Tenant['tenantType']) => {
-    switch (type) {
-      case 'Individual':
-        return 'bg-blue-50 text-blue-700 border border-blue-200'
-      case 'Family':
-        return 'bg-purple-50 text-purple-700 border border-purple-200'
-      case 'Corporate':
-        return 'bg-amber-50 text-amber-700 border border-amber-200'
-    }
-  }
+  const totalPages = data?.totalPages ?? 1
+  const totalOutstanding = balances?.totalOutstanding ?? 0
 
   return (
     <div className="space-y-5">
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-xl font-bold text-slate-900 tracking-tight">Tenants & Leases</h1>
-          <p className="text-xs text-slate-500">Manage tenant profiles, lease durations, and occupancy</p>
+          <h1 className="text-xl font-bold text-slate-900 tracking-tight">Tenants &amp; Leases</h1>
+          <p className="text-xs text-slate-500">
+            Every lease on your portfolio, with what each tenant currently owes
+          </p>
         </div>
 
-        <button
-          onClick={() => setIsAddModalOpen(true)}
-          className="inline-flex items-center gap-1.5 rounded-xl bg-[#0F2744] px-4 py-2.5 text-xs font-semibold text-white shadow-xs hover:bg-[#1A365D] transition self-start sm:self-auto"
-        >
-          <Plus className="h-4 w-4" />
-          + Add New Tenant
-        </button>
-      </div>
-
-      {/* Top 5 Stat Cards */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
-        <div className="rounded-xl border border-slate-200/90 bg-white p-4 shadow-xs">
-          <span className="text-xs font-medium text-slate-500">Total Tenants</span>
-          <p className="mt-1.5 text-2xl font-bold text-slate-900">{totalCount}</p>
-        </div>
-
-        <div className="rounded-xl border border-slate-200/90 bg-white p-4 shadow-xs">
-          <span className="text-xs font-medium text-slate-500">Individual</span>
-          <p className="mt-1.5 text-2xl font-bold text-slate-900">{individualCount}</p>
-        </div>
-
-        <div className="rounded-xl border border-slate-200/90 bg-white p-4 shadow-xs">
-          <span className="text-xs font-medium text-slate-500">Family</span>
-          <p className="mt-1.5 text-2xl font-bold text-slate-900">{familyCount}</p>
-        </div>
-
-        <div className="rounded-xl border border-slate-200/90 bg-white p-4 shadow-xs">
-          <span className="text-xs font-medium text-slate-500">Corporate</span>
-          <p className="mt-1.5 text-2xl font-bold text-slate-900">{corporateCount}</p>
-        </div>
-
-        <div className="rounded-xl border border-slate-200/90 bg-white p-4 shadow-xs">
-          <span className="text-xs font-medium text-slate-500">Late Payments</span>
-          <p className="mt-1.5 text-2xl font-bold text-rose-600">{latePaymentCount}</p>
+        <div className="flex items-center gap-4">
+          <div className="text-right">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+              Total outstanding
+            </p>
+            <p className="text-lg font-black text-slate-900">
+              ETB {totalOutstanding.toLocaleString()}
+            </p>
+          </div>
+          <div className="text-right">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Leases</p>
+            <p className="text-lg font-black text-slate-900">{data?.total ?? 0}</p>
+          </div>
         </div>
       </div>
 
-      {/* 3 Classification Summaries */}
-      <ClassificationSummaries />
+      {/* Filters */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-wrap gap-1.5 border-b border-slate-200 pb-px">
+          {STATUS_FILTERS.map((filter) => {
+            const active = statusFilter === filter.key
+            return (
+              <button
+                key={filter.key}
+                type="button"
+                onClick={() => {
+                  setStatusFilter(filter.key)
+                  setPage(1)
+                }}
+                className={`-mb-px border-b-2 px-3.5 py-2 text-xs font-bold transition ${
+                  active
+                    ? 'border-blue-600 text-blue-700'
+                    : 'border-transparent text-slate-500 hover:border-slate-300 hover:text-slate-700'
+                }`}
+              >
+                {filter.label}
+              </button>
+            )
+          })}
+        </div>
 
-      {/* Search Bar */}
-      <div className="relative">
-        <Search className="pointer-events-none absolute left-3.5 top-3 h-4 w-4 text-slate-400" />
-        <input
-          type="text"
-          placeholder="Search buildings by name or address..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="w-full rounded-xl border border-slate-200/90 bg-white py-2.5 pl-10 pr-4 text-xs text-slate-800 placeholder-slate-400 outline-none shadow-xs transition focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-        />
+        <div className="relative sm:w-72">
+          <Search className="pointer-events-none absolute left-3.5 top-2.5 h-4 w-4 text-slate-400" />
+          <input
+            type="text"
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+            placeholder="Search tenant, building, unit or reference..."
+            className="w-full rounded-xl border border-slate-200 bg-white py-2 pl-10 pr-4 text-xs text-slate-800 placeholder-slate-400 shadow-xs outline-none transition focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+          />
+        </div>
       </div>
 
-      {/* Filters Toolbar */}
-      <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center">
-        <select
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
-          className="rounded-xl border border-slate-200/90 bg-white px-3 py-2 text-xs font-medium text-slate-700 outline-none shadow-xs transition focus:border-blue-500"
+      {error && (
+        <div
+          role="alert"
+          className="flex items-start gap-2.5 rounded-xl border border-red-200 bg-red-50 p-3.5 text-xs font-medium text-red-800"
         >
-          <option value="All Status">All Status</option>
-          <option value="Active">Active</option>
-          <option value="Expiring Soon">Expiring Soon</option>
-          <option value="Terminated">Terminated</option>
-        </select>
+          <AlertCircle className="h-4 w-4 shrink-0 mt-0.5 text-red-500" />
+          <p>{toErrorMessage(error)}</p>
+        </div>
+      )}
 
-        <select
-          value={tenantTypeFilter}
-          onChange={(e) => setTenantTypeFilter(e.target.value)}
-          className="rounded-xl border border-slate-200/90 bg-white px-3 py-2 text-xs font-medium text-slate-700 outline-none shadow-xs transition focus:border-blue-500"
-        >
-          <option value="All Tenant Types">All Tenant Types</option>
-          <option value="Individual">Individual</option>
-          <option value="Family">Family</option>
-          <option value="Corporate">Corporate</option>
-        </select>
-
-        <select
-          value={buildingFilter}
-          onChange={(e) => setBuildingFilter(e.target.value)}
-          className="rounded-xl border border-slate-200/90 bg-white px-3 py-2 text-xs font-medium text-slate-700 outline-none shadow-xs transition focus:border-blue-500"
-        >
-          <option value="All Buildings">All Buildings</option>
-          <option value="Building A - Bole Plaza">Building A - Bole Plaza</option>
-          <option value="Building B - Kazanchis Heights">Building B - Kazanchis Heights</option>
-          <option value="Building C - CMC Towers">Building C - CMC Towers</option>
-          <option value="Building D - Sarbet View">Building D - Sarbet View</option>
-          <option value="Building E - Lideta Residences">Building E - Lideta Residences</option>
-        </select>
-
-        <select
-          value={paymentFilter}
-          onChange={(e) => setPaymentFilter(e.target.value)}
-          className="rounded-xl border border-slate-200/90 bg-white px-3 py-2 text-xs font-medium text-slate-700 outline-none shadow-xs transition focus:border-blue-500"
-        >
-          <option value="All Payment Status">All Payment Status</option>
-          <option value="Current">Current</option>
-          <option value="Late">Late</option>
-          <option value="Pending">Pending</option>
-        </select>
-      </div>
-
-      {/* Tenants Table */}
+      {/* Tenant list */}
       <div className="overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-xs">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs">
-            <thead>
-              <tr className="border-b border-slate-200 bg-slate-50/70 text-[11px] font-bold uppercase tracking-wider text-slate-500">
-                <th className="px-4 py-3.5">Unit No.</th>
-                <th className="px-4 py-3.5">Tenant Name</th>
-                <th className="px-4 py-3.5">Tenant Type</th>
-                <th className="px-4 py-3.5">Contact</th>
-                <th className="px-4 py-3.5">Lease Type</th>
-                <th className="px-4 py-3.5">Lease Start</th>
-                <th className="px-4 py-3.5">Lease End</th>
-                <th className="px-4 py-3.5">Monthly Rent</th>
-                <th className="px-4 py-3.5">Payment Status</th>
-                <th className="px-4 py-3.5">Status</th>
-                <th className="px-4 py-3.5 text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {filteredTenants.map((t) => (
-                <tr key={t.id} className="hover:bg-slate-50/80 transition">
-                  <td className="px-4 py-3 font-semibold text-blue-600">{t.unitNo}</td>
-                  <td className="px-4 py-3 font-semibold text-slate-900">
-                    <div>{t.tenantName}</div>
-                    <div className="text-[10px] font-normal text-slate-400">
-                      {t.buildingName}
-                    </div>
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className={`rounded-md px-2 py-0.5 text-[10px] font-medium ${getTenantTypeBadge(t.tenantType)}`}>
-                      {t.tenantType}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-slate-600">
-                    <div>{t.contactPhone}</div>
-                    <div className="text-[10px] text-slate-400">{t.contactEmail}</div>
-                  </td>
-                  <td className="px-4 py-3 text-slate-600 font-medium">{t.leaseType}</td>
-                  <td className="px-4 py-3 text-slate-500">{t.leaseStart}</td>
-                  <td className="px-4 py-3 text-slate-500">{t.leaseEnd}</td>
-                  <td className="px-4 py-3 font-bold text-slate-900">
-                    {t.monthlyRent.toLocaleString()} ETB
-                  </td>
-                  <td className="px-4 py-3">
-                    <span
-                      className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold ${
-                        t.paymentStatus === 'Current'
-                          ? 'bg-emerald-50 text-emerald-700'
-                          : 'bg-rose-50 text-rose-700'
-                      }`}
-                    >
-                      {t.paymentStatus}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3">
-                    <span
-                      className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold ${
-                        t.status === 'Active'
-                          ? 'bg-emerald-50 text-emerald-700'
-                          : 'bg-amber-50 text-amber-700'
-                      }`}
-                    >
-                      {t.status}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-right">
-                    <button
-                      className="rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition"
-                      aria-label="Tenant actions"
-                    >
-                      <MoreVertical className="h-4 w-4" />
-                    </button>
-                  </td>
+        {isLoading ? (
+          <div className="flex items-center justify-center gap-2 py-16 text-xs text-slate-400">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            Loading your leases…
+          </div>
+        ) : filtered.length === 0 ? (
+          <div className="flex flex-col items-center gap-1.5 py-16 text-center">
+            <Users className="h-7 w-7 text-slate-300" />
+            <p className="text-sm font-bold text-slate-700">
+              {leases.length === 0 ? 'No tenants yet' : 'No matches'}
+            </p>
+            <p className="max-w-sm text-xs text-slate-500">
+              {leases.length === 0
+                ? 'Tenants appear here once a rental request is accepted and a lease is signed. Until then this is genuinely empty.'
+                : 'No lease matches your search on this page.'}
+            </p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs">
+              <thead>
+                <tr className="border-b border-slate-200 bg-slate-50/70 text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                  <th className="px-4 py-3.5">Tenant</th>
+                  <th className="px-4 py-3.5">Building / Unit</th>
+                  <th className="px-4 py-3.5">Lease</th>
+                  <th className="px-4 py-3.5">Rent</th>
+                  <th className="px-4 py-3.5">Outstanding</th>
+                  <th className="px-4 py-3.5 text-right">Status</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {filtered.map((lease) => {
+                  const balance = outstandingByTenant.get(lease.tenantId)
+                  const outstanding = balance?.outstanding ?? 0
+                  return (
+                    <tr key={lease.id} className="align-top transition hover:bg-slate-50/80">
+                      <td className="px-4 py-3.5">
+                        <div className="font-bold text-slate-900">{lease.tenant.fullName}</div>
+                        <div className="font-mono text-[10px] text-slate-400">
+                          {lease.tenant.phoneNumber}
+                        </div>
+                      </td>
 
-      {/* Add Tenant Modal */}
-      <AddTenantModal
-        isOpen={isAddModalOpen}
-        onClose={() => setIsAddModalOpen(false)}
-        onAdd={() => setIsAddModalOpen(false)}
-      />
+                      <td className="px-4 py-3.5 text-slate-600">
+                        <div className="inline-flex items-center gap-1.5 font-semibold text-slate-700">
+                          <Building2 className="h-3.5 w-3.5 text-blue-600" />
+                          {lease.property.name}
+                        </div>
+                        <div className="text-[10px] text-slate-400">
+                          Unit {lease.unit.unitNumber}
+                        </div>
+                      </td>
+
+                      <td className="px-4 py-3.5 text-slate-500">
+                        <div className="font-mono text-[10px]">{lease.referenceNo}</div>
+                        <div className="text-[10px] text-slate-400">
+                          {formatDate(lease.startDate)} → {formatDate(lease.endDate)}
+                        </div>
+                      </td>
+
+                      <td className="px-4 py-3.5 font-semibold text-slate-800">
+                        ETB {lease.rentAmount.toLocaleString()}
+                        <div className="text-[10px] font-normal text-slate-400">
+                          deposit ETB {lease.depositAmount.toLocaleString()}
+                        </div>
+                      </td>
+
+                      <td className="px-4 py-3.5">
+                        {outstanding > 0 ? (
+                          <>
+                            <div className="font-bold text-rose-700">
+                              ETB {outstanding.toLocaleString()}
+                            </div>
+                            {balance && balance.overdueCount > 0 && (
+                              <div className="text-[10px] text-rose-500">
+                                {balance.overdueCount} overdue
+                              </div>
+                            )}
+                          </>
+                        ) : (
+                          <span className="text-emerald-600">Settled</span>
+                        )}
+                      </td>
+
+                      <td className="px-4 py-3.5 text-right">
+                        <span
+                          className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold ${
+                            STATUS_BADGE[lease.status] ?? 'bg-slate-100 text-slate-600'
+                          }`}
+                        >
+                          {lease.status.replace(/_/g, ' ')}
+                        </span>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between border-t border-slate-100 px-4 py-3">
+            <p className="text-[11px] text-slate-500">
+              Page {data?.page ?? 1} of {totalPages} · {data?.total ?? 0} leases
+              {isFetching ? ' · refreshing…' : ''}
+            </p>
+            <div className="flex gap-1.5">
+              <button
+                type="button"
+                onClick={() => {
+                  log.info('previous page', { from: page })
+                  setPage((p) => Math.max(1, p - 1))
+                }}
+                disabled={(data?.page ?? 1) <= 1}
+                className="rounded-lg border border-slate-200 px-3 py-1.5 text-[11px] font-semibold text-slate-600 transition hover:bg-slate-50 disabled:opacity-40"
+              >
+                Previous
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  log.info('next page', { from: page })
+                  setPage((p) => Math.min(totalPages, p + 1))
+                }}
+                disabled={(data?.page ?? 1) >= totalPages}
+                className="rounded-lg border border-slate-200 px-3 py-1.5 text-[11px] font-semibold text-slate-600 transition hover:bg-slate-50 disabled:opacity-40"
+              >
+                Next
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   )
 }

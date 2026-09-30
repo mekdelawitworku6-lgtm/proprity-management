@@ -56,7 +56,7 @@ const baseQueryWithReauth: BaseQueryFn<
 export const api = createApi({
   reducerPath: 'api',
   baseQuery: baseQueryWithReauth,
-  tagTypes: ['Property', 'Unit', 'Dashboard'],
+  tagTypes: ['Property', 'Unit', 'Dashboard', 'AdminUser', 'Notification', 'Agreement', 'Balance'],
   keepUnusedDataFor: 60,
   refetchOnReconnect: true,
   endpoints: () => ({}),
