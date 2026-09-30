@@ -2,6 +2,7 @@ import { api, unwrapEnvelope } from './api'
 import type {
   AgreementFilter,
   AgreementSummary,
+  AuditLogEntry,
   ComplaintDetail,
   ComplaintFilter,
   ComplaintListItem,
@@ -9,6 +10,9 @@ import type {
   ComplaintStatus,
   CreateComplaintPayload,
   CreatePropertyPayload,
+  CreateStaffPayload,
+  ManagerPermission,
+  OwnerAuditFilter,
   OwnerBalances,
   OwnerDashboard,
   Paginated,
@@ -19,6 +23,7 @@ import type {
   PublicUser,
   RegisterOwnerPayload,
   RegisterResponse,
+  StaffMember,
   UpdatePropertyPayload,
   UploadedFile,
 } from '../types/api'
@@ -188,6 +193,71 @@ export const complaintsApi = api.injectEndpoints({
   overrideExisting: false,
 })
 
+export const teamApi = api.injectEndpoints({
+  endpoints: (builder) => ({
+    /** Staff accounts this owner added, each with the grants currently attached. */
+    getStaff: builder.query<StaffMember[], void>({
+      query: () => ({ url: '/managers' }),
+      transformResponse: unwrapEnvelope,
+      providesTags: ['Staff'],
+    }),
+
+    /**
+     * Adds a staff account. Omitting `permissions` grants everything, which is
+     * why the UI always sends an explicit list.
+     */
+    createStaff: builder.mutation<StaffMember, CreateStaffPayload>({
+      query: (body) => ({ url: '/managers', method: 'POST', body }),
+      transformResponse: unwrapEnvelope,
+      invalidatesTags: ['Staff'],
+    }),
+
+    /** Replaces the grants on one staff account; the server audits before/after. */
+    setStaffPermissions: builder.mutation<
+      StaffMember,
+      { id: string; permissions: ManagerPermission[] }
+    >({
+      query: ({ id, permissions }) => ({
+        url: `/managers/${id}/permissions`,
+        method: 'PATCH',
+        body: { permissions },
+      }),
+      transformResponse: unwrapEnvelope,
+      invalidatesTags: ['Staff'],
+    }),
+
+    setStaffActive: builder.mutation<StaffMember, { id: string; active: boolean }>({
+      query: ({ id, active }) => ({
+        url: `/managers/${id}/${active ? 'activate' : 'deactivate'}`,
+        method: 'PATCH',
+      }),
+      transformResponse: unwrapEnvelope,
+      invalidatesTags: ['Staff'],
+    }),
+  }),
+  overrideExisting: false,
+})
+
+export const activityApi = api.injectEndpoints({
+  endpoints: (builder) => ({
+    /**
+     * What I and my staff did, scoped server-side to this owner and the accounts
+     * they employ. Includes RECORD_VIEWED rows so read access is traceable.
+     */
+    getMyActivity: builder.query<Paginated<AuditLogEntry>, OwnerAuditFilter | void>({
+      query: (filter) => ({ url: '/owner/audit-logs', params: filter ?? {} }),
+      transformResponse: unwrapEnvelope,
+      providesTags: (result) => [
+        'Activity' as const,
+        ...(result?.docs
+          .filter((entry) => entry.actorId)
+          .map((entry) => ({ type: 'Activity' as const, id: entry.actorId as string })) ?? []),
+      ],
+    }),
+  }),
+  overrideExisting: false,
+})
+
 export const {
   useCurrentUserQuery,
   useRegisterMutation,
@@ -206,4 +276,9 @@ export const {
   useUpdateComplaintStatusMutation,
   useRespondToComplaintMutation,
   useEscalateComplaintMutation,
-} = { ...authApi, ...propertyApi, ...complaintsApi }
+  useGetStaffQuery,
+  useCreateStaffMutation,
+  useSetStaffPermissionsMutation,
+  useSetStaffActiveMutation,
+  useGetMyActivityQuery,
+} = { ...authApi, ...propertyApi, ...complaintsApi, ...teamApi, ...activityApi }

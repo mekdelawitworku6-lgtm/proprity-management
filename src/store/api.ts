@@ -65,6 +65,8 @@ export const api = createApi({
     'Agreement',
     'Balance',
     'Complaint',
+    'Staff',
+    'Activity',
   ],
   keepUnusedDataFor: 60,
   refetchOnReconnect: true,

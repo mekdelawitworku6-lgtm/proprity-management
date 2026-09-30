@@ -15,6 +15,8 @@ import OwnerTenants from './pages/owner/OwnerTenants'
 import OwnerAgreements from './pages/owner/OwnerAgreements'
 import OwnerComplaints from './pages/owner/OwnerComplaints'
 import OwnerPayments from './pages/owner/OwnerPayments'
+import { OwnerStaff } from './pages/owner/OwnerStaff'
+import { OwnerActivity } from './pages/owner/OwnerActivity'
 import OwnerSettings from './pages/owner/OwnerSettings'
 
 // Admin Portal
@@ -88,6 +90,8 @@ function App() {
           <Route path="agreements" element={<OwnerAgreements />} />
           <Route path="complaints" element={<OwnerComplaints />} />
           <Route path="payments" element={<OwnerPayments />} />
+          <Route path="staff" element={<OwnerStaff />} />
+          <Route path="activity" element={<OwnerActivity />} />
           <Route path="settings" element={<OwnerSettings />} />
         </Route>
 

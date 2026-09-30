@@ -12,6 +12,36 @@ export type ApprovalStatus = 'PENDING' | 'APPROVED' | 'REJECTED'
 export type Language = 'EN' | 'AM'
 export type KycStatus = 'NOT_SUBMITTED' | 'PENDING' | 'VERIFIED' | 'REJECTED'
 
+/** Capability grants an owner can hand to a staff (MANAGER) account. */
+export const MANAGER_PERMISSIONS = [
+  'PROPERTY_VIEW',
+  'PROPERTY_MANAGE',
+  'UNIT_MANAGE',
+  'TENANT_VIEW',
+  'TENANT_MANAGE',
+  'AGREEMENT_VIEW',
+  'AGREEMENT_MANAGE',
+  'COMPLAINT_VIEW',
+  'COMPLAINT_MANAGE',
+  'PAYMENT_VIEW',
+  'PAYMENT_RECORD',
+  'VENDOR_VIEW',
+  'VENDOR_MANAGE',
+  'REPORT_VIEW',
+] as const
+export type ManagerPermission = (typeof MANAGER_PERMISSIONS)[number]
+
+/** Grouped for the "add staff" checkbox list, with a sensible default per area. */
+export const MANAGER_PERMISSION_GROUPS: { area: string; permissions: ManagerPermission[] }[] = [
+  { area: 'Properties & units', permissions: ['PROPERTY_VIEW', 'PROPERTY_MANAGE', 'UNIT_MANAGE'] },
+  { area: 'Tenants', permissions: ['TENANT_VIEW', 'TENANT_MANAGE'] },
+  { area: 'Agreements', permissions: ['AGREEMENT_VIEW', 'AGREEMENT_MANAGE'] },
+  { area: 'Complaints & maintenance', permissions: ['COMPLAINT_VIEW', 'COMPLAINT_MANAGE'] },
+  { area: 'Payments', permissions: ['PAYMENT_VIEW', 'PAYMENT_RECORD'] },
+  { area: 'Vendors', permissions: ['VENDOR_VIEW', 'VENDOR_MANAGE'] },
+  { area: 'Reports', permissions: ['REPORT_VIEW'] },
+]
+
 export const PROPERTY_TYPES = ['RESIDENTIAL', 'COMMERCIAL', 'MIXED_USE'] as const
 export type PropertyType = (typeof PROPERTY_TYPES)[number]
 
@@ -569,4 +599,59 @@ export interface ComplaintFilter {
   propertyId?: string
   /** Admin only: complaints left unresolved past the SLA. */
   staleOnly?: boolean
+}
+
+/** A staff account the owner added, with the grants currently attached to it. */
+export interface StaffMember {
+  id: string
+  fullName: string
+  phoneNumber: string
+  email: string | null
+  role: UserRole
+  /** Empty means the staff member currently has no owner-side access at all. */
+  permissions: ManagerPermission[]
+  isSuspended: boolean
+  suspendedReason: string | null
+  createdAt: string
+}
+
+export interface CreateStaffPayload {
+  fullName: string
+  phoneNumber: string
+  email?: string
+  password: string
+  permissions?: ManagerPermission[]
+}
+
+export interface AuditLogActor {
+  id: string
+  fullName: string
+  role: UserRole
+  phoneNumber: string
+}
+
+export interface AuditLogEntry {
+  id: string
+  action: string
+  entityType: string
+  entityId: string | null
+  actorId: string | null
+  actorRole: string
+  ipAddress: string | null
+  metadata: Record<string, unknown> | null
+  createdAt: string
+  actor: AuditLogActor | null
+}
+
+/** OwnerAuditLogFilterDto (extends PaginationDto). */
+export interface OwnerAuditFilter {
+  page?: number
+  limit?: number
+  action?: string
+  entityType?: string
+  actorId?: string
+  from?: string
+  to?: string
+  /** Set false to hide RECORD_VIEWED rows and show only real changes. */
+  includeViews?: boolean
 }

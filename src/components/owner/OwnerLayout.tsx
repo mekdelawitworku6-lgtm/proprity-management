@@ -11,6 +11,8 @@ import {
   LayoutDashboard,
   Search,
   Menu,
+  ScrollText,
+  UserCog,
   X,
 } from 'lucide-react'
 import { useAuth } from '../../store/hooks'
@@ -23,6 +25,9 @@ export function OwnerLayout() {
 
   const displayName = currentUser?.fullName ?? 'Property Owner'
   const organization = currentUser?.ownerProfile?.companyName ?? displayName
+  // Staff accounts can act on the portfolio but must not manage other staff or
+  // read the owner's activity trail, so those two entries are owner-only.
+  const isOwner = currentUser?.role === 'OWNER'
   const initials = displayName
     .split(' ')
     .filter(Boolean)
@@ -37,8 +42,10 @@ export function OwnerLayout() {
     { to: '/owner/agreements', label: 'Digital Agreements', icon: FileSignature },
     { to: '/owner/complaints', label: 'Maintenance & Reports', icon: Wrench },
     { to: '/owner/payments', label: 'Payment History', icon: Receipt },
+    { to: '/owner/staff', label: 'Staff & Permissions', icon: UserCog, ownerOnly: true },
+    { to: '/owner/activity', label: 'Activity', icon: ScrollText, ownerOnly: true },
     { to: '/owner/settings', label: 'Settings', icon: Settings },
-  ]
+  ].filter((item) => !item.ownerOnly || isOwner)
 
   const handleLogout = async () => {
     await logout()
