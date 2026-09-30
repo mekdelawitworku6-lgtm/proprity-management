@@ -1,235 +1,329 @@
-import { useState } from 'react'
 import {
-  Building2,
-  Wrench,
+  AlertCircle,
   ArrowUpRight,
-  Plus,
+  Building2,
   FileSignature,
-  DollarSign,
+  Loader2,
+  Plus,
+  Wallet,
+  Wrench,
 } from 'lucide-react'
 import { Link } from 'react-router-dom'
-import { usePlatform } from '../../store/hooks'
-import { ClassificationSummaries } from '../../components/ClassificationSummaries'
-import { CreateMaintenanceModal } from '../../components/modals/CreateMaintenanceModal'
-import { EditPropertyModal } from '../../components/modals/EditPropertyModal'
+import {
+  useGetAgreementsQuery,
+  useGetComplaintsQuery,
+  useGetOwnerBalancesQuery,
+  useGetOwnerDashboardQuery,
+} from '../../store/propertyApi'
+import { toErrorMessage } from '../../store/api'
+import type { Priority } from '../../types/api'
+
+const PRIORITY_BADGE: Record<Priority, string> = {
+  URGENT: 'bg-rose-100 text-rose-700',
+  HIGH: 'bg-amber-100 text-amber-700',
+  MEDIUM: 'bg-orange-100 text-orange-700',
+  LOW: 'bg-slate-100 text-slate-600',
+}
+
+function formatMoney(amount: number): string {
+  return `ETB ${amount.toLocaleString()}`
+}
+
+function formatMonth(iso: string): string {
+  return new Date(iso).toLocaleDateString(undefined, { month: 'short', year: 'numeric' })
+}
+
+function formatDate(iso: string): string {
+  return new Date(iso).toLocaleDateString()
+}
+
+function StatCard({
+  label,
+  value,
+  hint,
+  hintTone,
+  to,
+  icon,
+}: {
+  label: string
+  value: string | number
+  hint: string
+  hintTone: string
+  to: string
+  icon: React.ReactNode
+}) {
+  return (
+    <Link
+      to={to}
+      className="group rounded-xl border border-slate-200/90 bg-white p-4 shadow-xs transition hover:border-blue-300"
+    >
+      <div className="flex items-center justify-between">
+        <span className="text-xs font-medium text-slate-500">{label}</span>
+        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
+          {icon}
+        </div>
+      </div>
+      <p className="mt-2 text-2xl font-bold text-slate-900">{value}</p>
+      <p className={`mt-1 flex items-center text-[11px] font-medium ${hintTone}`}>
+        {hint}
+        <ArrowUpRight className="ml-0.5 h-3 w-3" />
+      </p>
+    </Link>
+  )
+}
 
 export default function OwnerDashboard() {
-  const { properties, complaints, transactions, agreements, addProperty, submitComplaint } = usePlatform()
-  const [isMaintModalOpen, setIsMaintModalOpen] = useState(false)
-  const [isPropModalOpen, setIsPropModalOpen] = useState(false)
+  const { data, isLoading, isFetching, error } = useGetOwnerDashboardQuery()
+  const { data: balances } = useGetOwnerBalancesQuery()
+  // Small pages just to populate the two "recent" panels.
+  const { data: recentAgreements } = useGetAgreementsQuery({ status: 'ACTIVE', limit: 3 })
+  const { data: recentComplaints } = useGetComplaintsQuery({ limit: 3 })
 
-  // Calculations
-  const totalOccupied = properties.reduce((acc, p) => acc + p.occupiedUnits, 0)
-  const totalUnitsCount = properties.reduce((acc, p) => acc + p.totalUnits, 0)
-  const occupancyRate = Math.round((totalOccupied / (totalUnitsCount || 1)) * 100)
-
-  const totalExpectedRev = properties.reduce((acc, p) => acc + p.monthlyRevenue, 0)
-  const totalCollectedRev = transactions
-    .filter((t) => t.status === 'Completed' && t.type === 'Rent')
-    .reduce((acc, t) => acc + t.amount, 0)
+  const totals = data?.totals
+  const units = totals?.units
+  const complaints = data?.maintenance.complaints
+  const openComplaints = (complaints?.OPEN ?? 0) + (complaints?.IN_PROGRESS ?? 0)
 
   return (
     <div className="space-y-6">
-      {/* Welcome Banner */}
+      {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-xl font-bold text-slate-900 tracking-tight">
-            Property Owner Dashboard
-          </h1>
+          <h1 className="text-xl font-bold tracking-tight text-slate-900">Property Owner Dashboard</h1>
           <p className="text-xs text-slate-500">
-            Portfolio performance, rent collection, and tenant management overview.
+            {data
+              ? `Portfolio performance for ${formatMonth(data.period.start)}`
+              : 'Portfolio performance, rent collection and tenant overview.'}
           </p>
         </div>
 
         <div className="flex items-center gap-2">
-          <button
-            onClick={() => setIsPropModalOpen(true)}
-            className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 shadow-xs hover:bg-slate-50 transition"
+          <Link
+            to="/owner/complaints"
+            className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 shadow-xs transition hover:bg-slate-50"
           >
-            <Plus className="h-4 w-4" /> Add Building
-          </button>
-          <button
-            onClick={() => setIsMaintModalOpen(true)}
-            className="inline-flex items-center gap-1.5 rounded-xl bg-[#0F2744] px-3.5 py-2 text-xs font-semibold text-white shadow-xs hover:bg-[#1A365D] transition"
+            <Wrench className="h-4 w-4" /> New request
+          </Link>
+          <Link
+            to="/owner/properties"
+            className="inline-flex items-center gap-1.5 rounded-xl bg-blue-700 px-3.5 py-2 text-xs font-semibold text-white shadow-xs transition hover:bg-blue-800"
           >
-            <Plus className="h-4 w-4" /> New Request
-          </button>
+            <Plus className="h-4 w-4" /> Add building
+          </Link>
         </div>
       </div>
 
-      {/* 4 Core Stat Cards */}
-      <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 lg:grid-cols-4">
-        {/* Buildings Card */}
-        <Link
-          to="/owner/properties"
-          className="group rounded-xl border border-slate-200/90 bg-white p-4 shadow-xs hover:border-blue-300 transition"
+      {error && (
+        <div
+          role="alert"
+          className="flex items-start gap-2.5 rounded-xl border border-red-200 bg-red-50 p-3.5 text-xs font-medium text-red-800"
         >
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-slate-500">My Buildings</span>
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
-              <Building2 className="h-4 w-4" />
-            </div>
-          </div>
-          <p className="mt-2 text-2xl font-bold text-slate-900">{properties.length}</p>
-          <p className="mt-1 flex items-center text-[11px] text-blue-600 font-medium">
-            {totalOccupied}/{totalUnitsCount} Units Occupied ({occupancyRate}%) <ArrowUpRight className="h-3 w-3 ml-0.5" />
-          </p>
-        </Link>
+          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-500" />
+          <p>{toErrorMessage(error)}</p>
+        </div>
+      )}
 
-        {/* Rent Collected vs Expected */}
-        <Link
-          to="/owner/payments"
-          className="group rounded-xl border border-slate-200/90 bg-white p-4 shadow-xs hover:border-blue-300 transition"
-        >
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-slate-500">Rent Collected (Mo)</span>
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600">
-              <DollarSign className="h-4 w-4" />
-            </div>
-          </div>
-          <p className="mt-2 text-2xl font-bold text-slate-900">
-            {(totalCollectedRev / 1000).toFixed(1)}K ETB
-          </p>
-          <p className="mt-1 flex items-center text-[11px] text-emerald-600 font-medium">
-            Expected: {(totalExpectedRev / 1000).toFixed(1)}K ETB <ArrowUpRight className="h-3 w-3 ml-0.5" />
-          </p>
-        </Link>
+      {isLoading ? (
+        <div className="flex items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white py-20 text-xs text-slate-400">
+          <Loader2 className="h-4 w-4 animate-spin" />
+          Loading your portfolio…
+        </div>
+      ) : (
+        <>
+          {/* Core stats, all straight from GET /dashboard/owner */}
+          <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 lg:grid-cols-4">
+            <StatCard
+              label="My buildings"
+              value={totals?.properties ?? 0}
+              hint={`${units?.occupied ?? 0}/${units?.total ?? 0} units occupied (${totals?.occupancyRate ?? 0}%)`}
+              hintTone="text-blue-600"
+              to="/owner/properties"
+              icon={<Building2 className="h-4 w-4" />}
+            />
 
-        {/* Active Agreements */}
-        <Link
-          to="/owner/agreements"
-          className="group rounded-xl border border-slate-200/90 bg-white p-4 shadow-xs hover:border-blue-300 transition"
-        >
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-slate-500">Digital Agreements</span>
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-purple-50 text-purple-600">
-              <FileSignature className="h-4 w-4" />
-            </div>
-          </div>
-          <p className="mt-2 text-2xl font-bold text-slate-900">{agreements.length}</p>
-          <p className="mt-1 flex items-center text-[11px] text-purple-600 font-medium">
-            100% Digitally Signed <ArrowUpRight className="h-3 w-3 ml-0.5" />
-          </p>
-        </Link>
+            <StatCard
+              label="Rent collected"
+              value={formatMoney(totals?.rentCollected ?? 0)}
+              hint={`${totals?.collectionRate ?? 0}% of ${formatMoney(totals?.rentExpected ?? 0)}`}
+              hintTone="text-emerald-600"
+              to="/owner/payments"
+              icon={<Wallet className="h-4 w-4" />}
+            />
 
-        {/* Complaints / Maintenance */}
-        <Link
-          to="/owner/complaints"
-          className="group rounded-xl border border-slate-200/90 bg-white p-4 shadow-xs hover:border-blue-300 transition"
-        >
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-slate-500">Complaints & Reports</span>
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-50 text-amber-600">
-              <Wrench className="h-4 w-4" />
-            </div>
-          </div>
-          <p className="mt-2 text-2xl font-bold text-slate-900">{complaints.length}</p>
-          <p className="mt-1 flex items-center text-[11px] text-amber-600 font-medium">
-            {complaints.filter((c) => c.status === 'Open' || c.status === 'In Progress').length} Active <ArrowUpRight className="h-3 w-3 ml-0.5" />
-          </p>
-        </Link>
-      </div>
+            <StatCard
+              label="Active leases"
+              value={totals?.activeAgreements ?? 0}
+              hint={`${totals?.leasesExpiringSoon ?? 0} expiring within 30 days`}
+              hintTone="text-purple-600"
+              to="/owner/agreements"
+              icon={<FileSignature className="h-4 w-4" />}
+            />
 
-      {/* 3 Classification Summaries */}
-      <ClassificationSummaries />
-
-      {/* Grid: Recent Agreements & Maintenance Reports */}
-      <div className="grid grid-cols-1 gap-5 lg:grid-cols-12">
-        {/* Recent Agreements (6 cols) */}
-        <div className="rounded-xl border border-slate-200/90 bg-white p-5 shadow-xs lg:col-span-6">
-          <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-            <h2 className="text-sm font-bold text-slate-900">Recent Signed Agreements</h2>
-            <Link to="/owner/agreements" className="text-xs font-semibold text-blue-600 hover:underline">
-              View all
-            </Link>
+            <StatCard
+              label="Complaints & reports"
+              value={Object.values(complaints ?? {}).reduce((sum, n) => sum + n, 0)}
+              hint={`${openComplaints} active · ${data?.maintenance.escalated ?? 0} escalated`}
+              hintTone="text-amber-600"
+              to="/owner/complaints"
+              icon={<Wrench className="h-4 w-4" />}
+            />
           </div>
 
-          <div className="mt-3 divide-y divide-slate-100 text-xs">
-            {agreements.slice(0, 3).map((agr) => (
-              <div key={agr.id} className="py-3 flex items-center justify-between">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="font-mono font-bold text-blue-700">{agr.agreementNumber}</span>
-                    <span className="rounded-md bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700">
-                      {agr.status}
-                    </span>
-                  </div>
-                  <p className="font-semibold text-slate-900 mt-1">{agr.tenantName} · {agr.unitNo}</p>
-                  <p className="text-[11px] text-slate-400">{agr.propertyName} · {agr.monthlyRent.toLocaleString()} ETB/mo</p>
-                </div>
-                <span className="text-[10px] font-mono text-slate-400">{agr.signedByTenantAt.split(' ')[0]}</span>
+          {/* Collection breakdown + outstanding */}
+          <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
+            <div className="rounded-xl border border-slate-200/90 bg-white p-5 shadow-xs lg:col-span-2">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                <h2 className="text-sm font-bold text-slate-900">Rent collection this month</h2>
+                {isFetching && <span className="text-[10px] text-slate-400">refreshing…</span>}
               </div>
-            ))}
-          </div>
-        </div>
 
-        {/* Recent Complaints / Maintenance (6 cols) */}
-        <div className="rounded-xl border border-slate-200/90 bg-white p-5 shadow-xs lg:col-span-6">
-          <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-            <h2 className="text-sm font-bold text-slate-900">Tenant Complaints & Maintenance</h2>
-            <Link to="/owner/complaints" className="text-xs font-semibold text-blue-600 hover:underline">
-              View all
-            </Link>
-          </div>
-
-          <div className="mt-3 divide-y divide-slate-100 text-xs">
-            {complaints.slice(0, 3).map((cmp) => (
-              <div key={cmp.id} className="py-3 flex items-center justify-between">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="font-mono font-bold text-slate-900">{cmp.code}</span>
-                    <span
-                      className={`rounded-md px-2 py-0.5 text-[10px] font-bold ${
-                        cmp.priority === 'Urgent'
-                          ? 'bg-rose-100 text-rose-700'
-                          : cmp.priority === 'High'
-                          ? 'bg-amber-100 text-amber-700'
-                          : 'bg-slate-100 text-slate-700'
-                      }`}
-                    >
-                      {cmp.priority}
-                    </span>
-                    <span className="rounded-md bg-blue-50 px-2 py-0.5 text-[10px] font-medium text-blue-700">
-                      {cmp.status}
-                    </span>
-                  </div>
-                  <p className="font-semibold text-slate-900 mt-1">{cmp.issueSummary}</p>
-                  <p className="text-[11px] text-slate-400">{cmp.propertyName} · {cmp.unitNumber} ({cmp.tenantName})</p>
+              <div className="mt-4">
+                <div className="flex items-baseline justify-between">
+                  <span className="text-xs font-semibold text-slate-600">Collected</span>
+                  <span className="text-lg font-black text-emerald-600">
+                    {formatMoney(totals?.rentCollected ?? 0)}
+                  </span>
                 </div>
+                <div className="mt-2 h-2.5 overflow-hidden rounded-full bg-slate-100">
+                  <div
+                    className="h-full rounded-full bg-emerald-500"
+                    style={{ width: `${Math.min(100, totals?.collectionRate ?? 0)}%` }}
+                  />
+                </div>
+                <p className="mt-1.5 text-[11px] text-slate-400">
+                  {totals?.collectionRate ?? 0}% of {formatMoney(totals?.rentExpected ?? 0)} expected
+                </p>
               </div>
-            ))}
-          </div>
-        </div>
-      </div>
 
-      {/* Modals */}
-      <CreateMaintenanceModal
-        isOpen={isMaintModalOpen}
-        onClose={() => setIsMaintModalOpen(false)}
-        onSubmit={(req) => {
-          submitComplaint({
-            propertyId: 'prop-1',
-            propertyName: 'Building A - Bole Plaza',
-            unitNumber: req.unitNumber,
-            tenantId: 'user-tenant-1',
-            tenantName: 'Resident Tenant',
-            category: req.category,
-            issueSummary: req.issueSummary,
-            description: req.description,
-            priority: req.priority,
-            assignedTechnician: req.assignedTechnician,
-          })
-          setIsMaintModalOpen(false)
-        }}
-      />
-      <EditPropertyModal
-        isOpen={isPropModalOpen}
-        onClose={() => setIsPropModalOpen(false)}
-        onSave={(prop) => {
-          addProperty(prop)
-          setIsPropModalOpen(false)
-        }}
-      />
+              <div className="mt-4 grid grid-cols-3 gap-3 border-t border-slate-100 pt-4">
+                {(['TELEBIRR', 'BANK_TRANSFER', 'CASH'] as const).map((method) => (
+                  <div key={method}>
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                      {method.replace('_', ' ')}
+                    </p>
+                    <p className="mt-0.5 text-sm font-bold text-slate-800">
+                      {formatMoney(totals?.collectedByMethod[method] ?? 0)}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="rounded-xl border border-slate-200/90 bg-white p-5 shadow-xs">
+              <h2 className="border-b border-slate-100 pb-3 text-sm font-bold text-slate-900">
+                Outstanding
+              </h2>
+
+              <div className="mt-4">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                  Total owed to you
+                </p>
+                <p className="mt-0.5 text-2xl font-black text-rose-600">
+                  {formatMoney(totals?.outstanding ?? 0)}
+                </p>
+              </div>
+
+              <dl className="mt-4 space-y-2 border-t border-slate-100 pt-4 text-xs">
+                <div className="flex items-center justify-between">
+                  <dt className="text-slate-500">Overdue invoices</dt>
+                  <dd className="font-bold text-slate-800">{totals?.overdueInvoices ?? 0}</dd>
+                </div>
+                <div className="flex items-center justify-between">
+                  <dt className="text-slate-500">Active tenants</dt>
+                  <dd className="font-bold text-slate-800">{totals?.activeTenants ?? 0}</dd>
+                </div>
+                <div className="flex items-center justify-between">
+                  <dt className="text-slate-500">Pending rental requests</dt>
+                  <dd className="font-bold text-slate-800">{totals?.pendingRentalRequests ?? 0}</dd>
+                </div>
+                <div className="flex items-center justify-between">
+                  <dt className="text-slate-500">Tenants in arrears</dt>
+                  <dd className="font-bold text-slate-800">{balances?.tenants.length ?? 0}</dd>
+                </div>
+              </dl>
+            </div>
+          </div>
+
+          {/* Recent activity */}
+          <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+            <div className="rounded-xl border border-slate-200/90 bg-white p-5 shadow-xs">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                <h2 className="text-sm font-bold text-slate-900">Active leases</h2>
+                <Link to="/owner/agreements" className="text-xs font-semibold text-blue-600 hover:underline">
+                  View all
+                </Link>
+              </div>
+
+              {(recentAgreements?.docs.length ?? 0) === 0 ? (
+                <p className="py-8 text-center text-xs text-slate-400">
+                  No active leases yet.
+                </p>
+              ) : (
+                <div className="mt-1 divide-y divide-slate-100 text-xs">
+                  {recentAgreements?.docs.map((lease) => (
+                    <div key={lease.id} className="flex items-center justify-between py-3">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono font-bold text-blue-700">{lease.referenceNo}</span>
+                          <span className="rounded-md bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700">
+                            {lease.status.replace(/_/g, ' ')}
+                          </span>
+                        </div>
+                        <p className="mt-1 truncate font-semibold text-slate-900">
+                          {lease.tenant.fullName} · Unit {lease.unit.unitNumber}
+                        </p>
+                        <p className="text-[11px] text-slate-400">
+                          {lease.property.name} · {formatMoney(lease.rentAmount)}/mo
+                        </p>
+                      </div>
+                      <span className="shrink-0 text-[10px] text-slate-400">
+                        until {formatDate(lease.endDate)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="rounded-xl border border-slate-200/90 bg-white p-5 shadow-xs">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                <h2 className="text-sm font-bold text-slate-900">Recent complaints</h2>
+                <Link to="/owner/complaints" className="text-xs font-semibold text-blue-600 hover:underline">
+                  View all
+                </Link>
+              </div>
+
+              {(recentComplaints?.docs.length ?? 0) === 0 ? (
+                <p className="py-8 text-center text-xs text-slate-400">Nothing reported yet.</p>
+              ) : (
+                <div className="mt-1 divide-y divide-slate-100 text-xs">
+                  {recentComplaints?.docs.map((complaint) => (
+                    <div key={complaint.id} className="py-3">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="font-mono font-bold text-slate-900">{complaint.referenceNo}</span>
+                        <span
+                          className={`rounded-md px-2 py-0.5 text-[10px] font-bold ${PRIORITY_BADGE[complaint.priority]}`}
+                        >
+                          {complaint.priority}
+                        </span>
+                        <span className="rounded-md bg-blue-50 px-2 py-0.5 text-[10px] font-medium text-blue-700">
+                          {complaint.status.replace(/_/g, ' ')}
+                        </span>
+                      </div>
+                      <p className="mt-1 font-semibold text-slate-900">{complaint.title}</p>
+                      <p className="text-[11px] text-slate-400">
+                        {complaint.property.name}
+                        {complaint.unit ? ` · Unit ${complaint.unit.unitNumber}` : ''}
+                        {complaint.tenant ? ` · ${complaint.tenant.fullName}` : ''}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </>
+      )}
     </div>
   )
 }

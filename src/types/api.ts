@@ -294,9 +294,20 @@ export interface OwnerDashboardTotals {
   pendingRentalRequests: number
 }
 
+export interface OwnerDashboardMaintenance {
+  /** Count per complaint status across the whole portfolio. */
+  complaints: Record<ComplaintStatus, number>
+  escalated: number
+  /** Count per work order status across the whole portfolio. */
+  workOrders: Record<WorkOrderStatus, number>
+}
+
 export interface OwnerDashboard {
+  /** The month the figures cover. Rent figures are scoped to this window. */
+  period: { start: string; end: string }
   properties: OwnerDashboardProperty[]
   totals: OwnerDashboardTotals
+  maintenance: OwnerDashboardMaintenance
 }
 
 /**
