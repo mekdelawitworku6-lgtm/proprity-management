@@ -46,6 +46,7 @@ export type ComplaintCategory = 'MAINTENANCE' | 'NOISE' | 'SAFETY' | 'PAYMENT' |
 export type Priority = 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT'
 export type ComplaintStatus = 'OPEN' | 'IN_PROGRESS' | 'RESOLVED' | 'CLOSED'
 export type EscalationStatus = 'NONE' | 'ESCALATED' | 'ADMIN_RESOLVED'
+export type WorkOrderStatus = 'OPEN' | 'ASSIGNED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED'
 
 /** Global TransformInterceptor envelope. */
 export interface ApiEnvelope<T> {
@@ -224,16 +225,11 @@ export interface Unit {
   updatedAt: string
 }
 
-export interface AgreementSummary {
-  id: string
-  status: AgreementStatus
-  tenant: { id: string; fullName: string; phoneNumber: string }
-}
-
 /** Property as returned by GET /properties/:id. */
 export interface PropertyDetail extends PropertyBase {
   units: Unit[]
   owner: { id: string; fullName: string; phoneNumber: string }
+  /** Only the `tenant` relation is included here — not unit/property/owner. */
   agreements: AgreementSummary[]
   unitSummary: UnitSummary
 }
@@ -425,4 +421,131 @@ export interface AdminUserDetail extends PublicUser {
     tenantPayments: number
     ownerPayments: number
   }
+}
+
+/** The tenant behind a complaint. The backend only selects these three columns. */
+export interface ComplaintTenantRef {
+  id: string
+  fullName: string
+  phoneNumber: string
+}
+
+/**
+ * One message on a complaint thread. `author` is who actually wrote it, which
+ * is not always the tenant — a manager or the admin can post on the thread too.
+ */
+export interface ComplaintResponseEntry {
+  id: string
+  complaintId: string
+  authorId: string
+  message: string
+  attachments: string[]
+  createdAt: string
+  author: { id: string; fullName: string; role: UserRole }
+}
+
+/** A repair job booked against a complaint, with the vendor that will do it. */
+export interface ComplaintWorkOrder {
+  id: string
+  referenceNo: string
+  title: string
+  description: string | null
+  priority: Priority
+  status: WorkOrderStatus
+  estimatedCost: number | null
+  actualCost: number | null
+  scheduledDate: string | null
+  completedAt: string | null
+  completionNotes: string | null
+  photos: string[]
+  createdAt: string
+  vendor: { id: string; name: string; phoneNumber: string } | null
+}
+
+/**
+ * GET /complaints rows. The server scopes these by role, so an owner only ever
+ * receives complaints on their own properties — no ownerId filter is needed.
+ *
+ * `raisedById` is the account that submitted the report (tenant or manager);
+ * `tenantId` is the tenant the report is *about*, derived from the active
+ * agreement. They differ when a manager files on a tenant's behalf.
+ */
+export interface ComplaintListItem {
+  id: string
+  referenceNo: string
+  tenantId: string | null
+  ownerId: string
+  propertyId: string
+  unitId: string | null
+  agreementId: string | null
+  raisedById: string
+  category: ComplaintCategory
+  priority: Priority
+  title: string
+  description: string
+  photos: string[]
+  status: ComplaintStatus
+  escalationStatus: EscalationStatus
+  escalatedAt: string | null
+  escalatedById: string | null
+  escalationReason: string | null
+  adminResolution: string | null
+  resolvedAt: string | null
+  createdAt: string
+  updatedAt: string
+  property: { id: string; name: string }
+  unit: { id: string; unitNumber: string } | null
+  tenant: ComplaintTenantRef | null
+  _count: { responses: number; workOrders: number }
+}
+
+/** GET /complaints/:id adds the full thread and the work orders. */
+export interface ComplaintDetail extends Omit<ComplaintListItem, '_count'> {
+  responses: ComplaintResponseEntry[]
+  workOrders: ComplaintWorkOrder[]
+}
+
+/**
+ * CreateComplaintDto. Owners and managers must send `propertyId`; the tenant is
+ * resolved server-side from the active agreement on the chosen `unitId`.
+ */
+export interface CreateComplaintPayload {
+  propertyId: string
+  unitId?: string
+  agreementId?: string
+  category: ComplaintCategory
+  priority?: Priority
+  title: string
+  description: string
+  photos?: string[]
+  /** Idempotency key, so a retried submit cannot create a duplicate. */
+  clientRef?: string
+}
+
+export interface UpdateComplaintStatusPayload {
+  status: ComplaintStatus
+  /** Posted to the thread as part of the status change. */
+  note?: string
+}
+
+export interface RespondComplaintPayload {
+  message: string
+  attachments?: string[]
+}
+
+export interface EscalateComplaintPayload {
+  reason: string
+}
+
+/** ComplaintFilterDto (extends PaginationDto). */
+export interface ComplaintFilter {
+  page?: number
+  limit?: number
+  status?: ComplaintStatus
+  category?: ComplaintCategory
+  priority?: Priority
+  escalationStatus?: EscalationStatus
+  propertyId?: string
+  /** Admin only: complaints left unresolved past the SLA. */
+  staleOnly?: boolean
 }

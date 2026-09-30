@@ -2,6 +2,12 @@ import { api, unwrapEnvelope } from './api'
 import type {
   AgreementFilter,
   AgreementSummary,
+  ComplaintDetail,
+  ComplaintFilter,
+  ComplaintListItem,
+  ComplaintResponseEntry,
+  ComplaintStatus,
+  CreateComplaintPayload,
   CreatePropertyPayload,
   OwnerBalances,
   OwnerDashboard,
@@ -112,6 +118,76 @@ export const propertyApi = api.injectEndpoints({
   overrideExisting: false,
 })
 
+export const complaintsApi = api.injectEndpoints({
+  endpoints: (builder) => ({
+    /**
+     * The server scopes the list by role: an owner receives everything filed
+     * against their properties, a tenant only their own reports, and an admin
+     * only escalated or SLA-breached complaints.
+     */
+    getComplaints: builder.query<Paginated<ComplaintListItem>, ComplaintFilter | void>({
+      query: (filter) => ({ url: '/complaints', params: filter ?? {} }),
+      transformResponse: unwrapEnvelope,
+      providesTags: (result) => [
+        { type: 'Complaint' as const, id: 'LIST' },
+        ...(result?.docs.map((complaint) => ({ type: 'Complaint' as const, id: complaint.id })) ?? []),
+      ],
+    }),
+
+    /** Adds the response thread and the work orders, so the owner can see who replied. */
+    getComplaint: builder.query<ComplaintDetail, string>({
+      query: (id) => ({ url: `/complaints/${id}` }),
+      transformResponse: unwrapEnvelope,
+      providesTags: (_result, _error, id) => [{ type: 'Complaint', id }],
+    }),
+
+    createComplaint: builder.mutation<ComplaintListItem, CreateComplaintPayload>({
+      query: (body) => ({ url: '/complaints', method: 'POST', body }),
+      transformResponse: unwrapEnvelope,
+      invalidatesTags: [{ type: 'Complaint', id: 'LIST' }],
+    }),
+
+    /**
+     * Owner/manager status change. An optional `note` is appended to the thread,
+     * and the tenant is notified by SMS.
+     */
+    updateComplaintStatus: builder.mutation<
+      ComplaintListItem,
+      { id: string; status: ComplaintStatus; note?: string }
+    >({
+      query: ({ id, ...body }) => ({ url: `/complaints/${id}/status`, method: 'PATCH', body }),
+      transformResponse: unwrapEnvelope,
+      invalidatesTags: (_result, _error, { id }) => [
+        { type: 'Complaint', id },
+        { type: 'Complaint', id: 'LIST' },
+      ],
+    }),
+
+    respondToComplaint: builder.mutation<
+      ComplaintResponseEntry,
+      { id: string; message: string; attachments?: string[] }
+    >({
+      query: ({ id, ...body }) => ({ url: `/complaints/${id}/responses`, method: 'POST', body }),
+      transformResponse: unwrapEnvelope,
+      invalidatesTags: (_result, _error, { id }) => [
+        { type: 'Complaint', id },
+        { type: 'Complaint', id: 'LIST' },
+      ],
+    }),
+
+    /** Hands the dispute to platform admins. Only allowed once, and not after CLOSED. */
+    escalateComplaint: builder.mutation<ComplaintListItem, { id: string; reason: string }>({
+      query: ({ id, ...body }) => ({ url: `/complaints/${id}/escalate`, method: 'POST', body }),
+      transformResponse: unwrapEnvelope,
+      invalidatesTags: (_result, _error, { id }) => [
+        { type: 'Complaint', id },
+        { type: 'Complaint', id: 'LIST' },
+      ],
+    }),
+  }),
+  overrideExisting: false,
+})
+
 export const {
   useCurrentUserQuery,
   useRegisterMutation,
@@ -124,4 +200,10 @@ export const {
   useGetAgreementsQuery,
   useGetOwnerBalancesQuery,
   useUploadPropertyPhotosMutation,
-} = { ...authApi, ...propertyApi }
+  useGetComplaintsQuery,
+  useGetComplaintQuery,
+  useCreateComplaintMutation,
+  useUpdateComplaintStatusMutation,
+  useRespondToComplaintMutation,
+  useEscalateComplaintMutation,
+} = { ...authApi, ...propertyApi, ...complaintsApi }
