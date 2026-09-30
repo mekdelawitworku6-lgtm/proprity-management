@@ -182,8 +182,15 @@ export function OwnerStaff() {
 
   const handleSavePermissions = async (staffId: string) => {
     const next = draft[staffId]
-    if (!next?.length) {
-      setNotice('Tick at least one permission — an empty grant list blocks every request.')
+    if (!next) return
+    // Revoking everything is allowed (it is how you lock an account out), but
+    // it is easy to do by accident, so make the owner confirm it.
+    if (
+      next.length === 0 &&
+      !window.confirm(
+        'Save with no permissions? This person will be signed in but blocked from every action until you grant access again.'
+      )
+    ) {
       return
     }
     try {
