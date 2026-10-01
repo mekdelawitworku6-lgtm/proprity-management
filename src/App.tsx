@@ -27,6 +27,7 @@ import AdminTenants from './pages/admin/AdminTenants'
 import AdminAgreements from './pages/admin/AdminAgreements'
 import AdminDisputes from './pages/admin/AdminDisputes'
 import AdminPayments from './pages/admin/AdminPayments'
+import { AdminStaff } from './pages/admin/AdminStaff'
 import AdminAuditLogs from './pages/admin/AdminAuditLogs'
 
 function RootRedirect() {
@@ -111,6 +112,16 @@ function App() {
           <Route path="agreements" element={<AdminAgreements />} />
           <Route path="disputes" element={<AdminDisputes />} />
           <Route path="payments" element={<AdminPayments />} />
+          <Route
+            path="staff"
+            element={
+              // Staff management is the platform admin's alone; the payment
+              // partner shares this layout but must not appoint staff.
+              <ProtectedRoute allowedRoles={['ADMIN']}>
+                <AdminStaff />
+              </ProtectedRoute>
+            }
+          />
           <Route path="audit" element={<AdminAuditLogs />} />
         </Route>
 

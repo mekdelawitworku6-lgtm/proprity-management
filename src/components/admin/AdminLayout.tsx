@@ -11,6 +11,7 @@ import {
   LayoutDashboard,
   Search,
   Menu,
+  UserCog,
   X,
 } from 'lucide-react'
 import { useAuth } from '../../store/hooks'
@@ -38,6 +39,10 @@ export function AdminLayout() {
     .map((part) => part[0]?.toUpperCase())
     .join('') || 'PT'
 
+  // Ethio Telecom shares this layout for payments but has no business appointing
+  // staff, so the entry is hidden rather than leading to a 403.
+  const isPlatformAdmin = currentUser?.role === 'ADMIN'
+
   const navItems = [
     { to: '/admin/dashboard', label: 'Platform Overview', icon: LayoutDashboard, badge: 0 },
     { to: '/admin/owners', label: 'Owner Requests', icon: Building2, badge: pendingCount },
@@ -45,8 +50,9 @@ export function AdminLayout() {
     { to: '/admin/agreements', label: 'Agreement Registry', icon: FileSignature, badge: 0 },
     { to: '/admin/disputes', label: 'Escalated Disputes', icon: Scale, badge: 0 },
     { to: '/admin/payments', label: 'Ethio Telecom Payments', icon: Receipt, badge: 0 },
+    { to: '/admin/staff', label: 'Staff Management', icon: UserCog, badge: 0, adminOnly: true },
     { to: '/admin/audit', label: 'Audit Trail & Logs', icon: History, badge: 0 },
-  ]
+  ].filter((item) => !item.adminOnly || isPlatformAdmin)
 
   const handleLogout = async () => {
     await logout()

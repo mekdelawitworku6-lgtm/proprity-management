@@ -623,6 +623,24 @@ export interface CreateStaffPayload {
   permissions?: ManagerPermission[]
 }
 
+/**
+ * The same staff account as seen by platform staff, who manage every owner's
+ * portfolio rather than just their own.
+ */
+export interface PlatformStaffMember extends StaffMember {
+  employerId: string | null
+  employer: {
+    id: string
+    fullName: string
+    ownerProfile: { companyName: string } | null
+  } | null
+}
+
+export interface CreatePlatformStaffPayload extends CreateStaffPayload {
+  /** The owner this account works for. Platform staff manage every portfolio. */
+  ownerId: string
+}
+
 export interface AuditLogActor {
   id: string
   fullName: string
@@ -654,4 +672,14 @@ export interface OwnerAuditFilter {
   to?: string
   /** Set false to hide RECORD_VIEWED rows and show only real changes. */
   includeViews?: boolean
+}
+
+/** AdminStaffFilterDto (extends PaginationDto). */
+export interface AdminStaffFilter {
+  page?: number
+  limit?: number
+  search?: string
+  /** Narrow to the staff of one owner. */
+  ownerId?: string
+  isSuspended?: boolean
 }
