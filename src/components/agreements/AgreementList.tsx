@@ -25,6 +25,13 @@ const STATUS_LABEL: Record<AgreementStatus, string> = {
   CANCELLED: 'Cancelled',
 }
 
+const KYC_BADGE: Record<string, string> = {
+  VERIFIED: 'bg-emerald-50 text-emerald-700',
+  PENDING: 'bg-amber-50 text-amber-700',
+  REJECTED: 'bg-rose-50 text-rose-700',
+  NOT_SUBMITTED: 'bg-slate-100 text-slate-600',
+}
+
 /** Owner / property label differs by audience, so the caller supplies it. */
 export interface AgreementListProps {
   agreements: AgreementSummary[]
@@ -189,7 +196,19 @@ export function AgreementList({
                 </div>
 
                 <div>
-                  <h3 className="font-bold text-slate-900">{agreement.tenant.fullName}</h3>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h3 className="font-bold text-slate-900">{agreement.tenant.fullName}</h3>
+                    {agreement.tenant.tenantProfile && (
+                      <span
+                        className={`rounded-md px-1.5 py-0.5 text-[10px] font-bold ${
+                          KYC_BADGE[agreement.tenant.tenantProfile.kycStatus] ?? KYC_BADGE.NOT_SUBMITTED
+                        }`}
+                        title={agreement.tenant.tenantProfile.faydaId ?? undefined}
+                      >
+                        {agreement.tenant.tenantProfile.kycStatus === 'VERIFIED' ? 'Fayda verified' : `KYC ${agreement.tenant.tenantProfile.kycStatus.toLowerCase()}`}
+                      </span>
+                    )}
+                  </div>
                   <p className="text-xs text-slate-500">
                     {agreement.property.name} · {agreement.unit.unitNumber}
                   </p>

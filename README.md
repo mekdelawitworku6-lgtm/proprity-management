@@ -673,6 +673,7 @@ Authenticated routes need `Authorization: Bearer <accessToken>`.
 | GET | `/agreements/verify/:referenceNo` | any | Public integrity check by reference |
 | GET | `/agreements/:id` | scoped | Full text + integrity verdict |
 | POST | `/agreements/:id/sign` | tenant | Digital signature; activates, generates invoices |
+| POST | `/agreements/:id/fayda/verify` | tenant | Mock Fayda check; IDs containing `FAIL`, `INVALID` or `NO_MATCH` fail, all others verify |
 | POST | `/agreements/:id/renew` · `/terminate` | owner | |
 | PATCH | `/agreements/:id/cancel` | owner | |
 | POST | `/agreements/:id/documents` | owner | Attach a document |
@@ -801,6 +802,8 @@ When a module gains a feature, add scenarios to its e2e suite in
 
 | Change | Why |
 |---|---|
+| Mock Fayda verification at agreement completion | Tenants can prove identity through a deterministic provider simulation without a live integration contract |
+| Verification status visible on agreement and tenant cards | Owners and admins can see which leases have a verified tenant |
 | Move-in/move-out inspection checklists with photo evidence | Document unit condition at handover and checkout instead of relying on memory or chat threads |
 | Security-deposit refund workflow with deductions tied to completed move-out inspections | Gives owners a defensible trail and tenants a clear approval/payment status |
 | Owner "Inspections & Deposits" workspace | Schedules inspections, completes checklists and drives refund approval/payment from the dashboard |

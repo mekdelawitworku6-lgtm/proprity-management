@@ -120,6 +120,8 @@ same API, the same database, and the same features described in this document.
 - **Request a rental.** Send an application with a message to the owner.
 - **Sign digitally.** No printing, no office visit — sign the agreement online. Signing is what
   activates the lease and creates the invoices.
+- **Verify with Fayda.** When the agreement is ready, the tenant can complete a mock Fayda identity
+  check; a successful check marks the tenant profile verified and updates the owner's view.
 - **Pay rent** with Telebirr or by declaring a bank transfer.
 - **Report problems.** File a complaint about maintenance, noise, safety, payments, or a dispute, and
   reply back and forth on the thread.
@@ -184,7 +186,8 @@ Here is the whole journey, start to finish:
 2. **A tenant sees the listing and requests to rent it.** The request waits for approval.
 3. **The owner accepts.** The unit is reserved and a digital agreement is generated.
 4. **The tenant signs online.** The agreement goes active, the unit becomes occupied, and the
-   deposit and rent invoices appear automatically.
+   deposit and rent invoices appear automatically. The tenant can also complete a mock Fayda
+   identity check at this stage.
 5. **The tenant pays** — Telebirr, bank transfer, or cash recorded by the owner. Every payment is
    matched against invoices, with overpayment flowing forward as prepaid rent.
 6. **Invoices update themselves** to paid or partially paid, and the owner is notified.

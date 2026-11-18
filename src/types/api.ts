@@ -11,6 +11,7 @@ export type UserRole = (typeof USER_ROLES)[number]
 export type ApprovalStatus = 'PENDING' | 'APPROVED' | 'REJECTED'
 export type Language = 'EN' | 'AM'
 export type KycStatus = 'NOT_SUBMITTED' | 'PENDING' | 'VERIFIED' | 'REJECTED'
+export type IdType = 'KEBELE_ID' | 'PASSPORT' | 'FAYDA' | 'DRIVING_LICENSE'
 
 /** Capability grants an owner can hand to a staff (MANAGER) account. */
 export const MANAGER_PERMISSIONS = [
@@ -124,12 +125,43 @@ export interface OwnerProfile {
 export interface TenantProfile {
   id: string
   userId: string
+  idType: IdType | string | null
+  idNumberMasked?: string | null
+  hasIdNumber?: boolean
+  faydaId: string | null
+  kycStatus: KycStatus
+  faydaVerificationRef?: string | null
+  faydaVerifiedAt: string | null
+  dateOfBirth?: string | null
+  occupation?: string | null
   emergencyContactName: string | null
   emergencyContactPhone: string | null
-  nationalIdNumber: string | null
-  kycStatus: KycStatus
+  emergencyContactRelation?: string | null
   createdAt: string
   updatedAt: string
+}
+
+export interface TenantVerificationSummary {
+  kycStatus: KycStatus
+  faydaId: string | null
+  faydaVerifiedAt: string | null
+  faydaVerificationRef?: string | null
+}
+
+export interface VerifyFaydaPayload {
+  faydaId: string
+  fullName?: string
+  dateOfBirth?: string
+}
+
+export interface FaydaVerificationResult {
+  agreementId: string
+  verified: boolean
+  kycStatus: KycStatus
+  faydaId: string | null
+  faydaVerificationRef: string
+  faydaVerifiedAt: string | null
+  reason: string | null
 }
 
 /** `toPublicUser` — never includes passwordHash / refreshTokenHash / sessionVersion. */
@@ -386,6 +418,7 @@ export interface AgreementPartyRef {
   id: string
   fullName: string
   phoneNumber: string
+  tenantProfile?: TenantVerificationSummary | null
 }
 
 /** GET /agreements rows omit `content` (the signed body) but carry these relations. */

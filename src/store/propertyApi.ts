@@ -18,6 +18,7 @@ import type {
   DecideDepositRefundPayload,
   DepositRefundFilter,
   DepositRefundRecord,
+  FaydaVerificationResult,
   CreateStaffPayload,
   InspectionFilter,
   InspectionSummary,
@@ -42,6 +43,7 @@ import type {
   StaffMember,
   UpdatePropertyPayload,
   UploadedFile,
+  VerifyFaydaPayload,
 } from '../types/api'
 
 export const authApi = api.injectEndpoints({
@@ -128,6 +130,12 @@ export const propertyApi = api.injectEndpoints({
       query: ({ id, body }) => ({ url: `/agreements/${id}/renew`, method: 'POST', body }),
       transformResponse: unwrapEnvelope,
       invalidatesTags: ['Agreement', 'Balance', 'Dashboard'],
+    }),
+
+    verifyFayda: builder.mutation<FaydaVerificationResult, { id: string; body: VerifyFaydaPayload }>({
+      query: ({ id, body }) => ({ url: `/agreements/${id}/fayda/verify`, method: 'POST', body }),
+      transformResponse: unwrapEnvelope,
+      invalidatesTags: ['Agreement', 'Activity'],
     }),
 
     getOwnerBalances: builder.query<OwnerBalances, void>({
@@ -450,6 +458,7 @@ export const {
   useGetAgreementsQuery,
   useGetAgreementQuery,
   useRenewAgreementMutation,
+  useVerifyFaydaMutation,
   useGetInspectionsQuery,
   useCreateInspectionMutation,
   useCompleteInspectionMutation,

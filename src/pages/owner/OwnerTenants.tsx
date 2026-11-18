@@ -25,6 +25,13 @@ function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString()
 }
 
+function kycBadge(status?: string): string {
+  if (status === 'VERIFIED') return 'bg-emerald-50 text-emerald-700'
+  if (status === 'PENDING') return 'bg-amber-50 text-amber-700'
+  if (status === 'REJECTED') return 'bg-rose-50 text-rose-700'
+  return 'bg-slate-100 text-slate-600'
+}
+
 export default function OwnerTenants() {
   const [searchInput, setSearchInput] = useState('')
   const search = useDeferredValue(searchInput)
@@ -312,7 +319,14 @@ export default function OwnerTenants() {
                       </td>
 
                       <td className="px-4 py-3.5">
-                        <div className="font-bold text-slate-900">{lease.tenant.fullName}</div>
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <div className="font-bold text-slate-900">{lease.tenant.fullName}</div>
+                          {lease.tenant.tenantProfile && (
+                            <span className={`rounded-md px-1.5 py-0.5 text-[9px] font-bold ${kycBadge(lease.tenant.tenantProfile.kycStatus)}`}>
+                              {lease.tenant.tenantProfile.kycStatus === 'VERIFIED' ? 'Fayda verified' : lease.tenant.tenantProfile.kycStatus.toLowerCase()}
+                            </span>
+                          )}
+                        </div>
                         <div className="text-[10px] text-slate-400">1 Occupant</div>
                       </td>
 
