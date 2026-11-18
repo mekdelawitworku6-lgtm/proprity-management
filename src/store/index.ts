@@ -1,6 +1,5 @@
 import { configureStore, type ThunkAction, type UnknownAction } from '@reduxjs/toolkit'
 import authReducer, { sessionEnded } from './authSlice'
-import platformReducer from './platformSlice'
 import { api } from './api'
 import { onSessionExpired } from '../api/tokenStore'
 import { createLogger } from '../utils/logger'
@@ -8,7 +7,6 @@ import { createLogger } from '../utils/logger'
 export const store = configureStore({
   reducer: {
     auth: authReducer,
-    platform: platformReducer,
     [api.reducerPath]: api.reducer,
   },
   middleware: (getDefaultMiddleware) => getDefaultMiddleware().concat(api.middleware),

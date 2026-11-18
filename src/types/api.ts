@@ -441,6 +441,149 @@ export interface UploadedFile {
   size: number
 }
 
+export type InvoiceType = 'RENT' | 'DEPOSIT' | 'PENALTY' | 'OTHER'
+
+/** GET /invoices rows. */
+export interface InvoiceSummary {
+  id: string
+  invoiceNo: string
+  agreementId: string
+  tenantId: string
+  ownerId: string
+  propertyId: string
+  unitId: string
+  type: InvoiceType
+  periodStart: string
+  periodEnd: string
+  dueDate: string
+  amount: number
+  amountPaid: number
+  currency: string
+  status: InvoiceStatus
+  description: string | null
+}
+
+/**
+ * Portion of a confirmed payment that landed on this invoice rather than being
+ * carried forward as a credit against later periods. Null when the whole
+ * payment was a prepayment that had no invoice to settle.
+ */
+export interface PaymentAllocation {
+  invoiceId: string
+  invoiceNo: string
+  amount: number
+}
+
+/** GET /agreements/:id — adds the signed body, its hash and the integrity verdict. */
+export interface AgreementDetail extends AgreementSummary {
+  content: string
+  contentHash: string
+  specialTerms: string | null
+  ownerSignedAt: string | null
+  tenantSignedAt: string | null
+  integrity: { valid: boolean; checkedAt: string; reason?: string }
+}
+
+/** GET /payments rows (PAYMENT_INCLUDE: invoice, tenant, property, agreement). */
+export interface PaymentRecord {
+  id: string
+  referenceNo: string
+  invoiceId: string | null
+  agreementId: string
+  tenantId: string
+  ownerId: string
+  propertyId: string
+  amount: number
+  currency: string
+  method: PaymentMethod
+  status: PaymentStatus
+  providerReference: string | null
+  bankName: string | null
+  receiptUrl: string | null
+  checkoutUrl: string | null
+  notes: string | null
+  clientRef: string | null
+  recordedById: string | null
+  confirmedById: string | null
+  confirmationSource: string | null
+  confirmedAt: string | null
+  createdAt: string
+  /** How far this payment reaches: months actually settled, then any credit beyond. */
+  allocations: PaymentAllocation[]
+  prepaidMonths: number
+  creditAmount: number
+  /** Last day rent is covered without a further transfer, null when not prepaid. */
+  prepaidThrough: string | null
+  invoice: {
+    id: string
+    invoiceNo: string
+    type: InvoiceType
+    periodStart: string
+    periodEnd: string
+    status: InvoiceStatus
+  } | null
+  tenant: AgreementPartyRef
+  property: { id: string; name: string }
+  agreement: { id: string; referenceNo: string; unitId: string }
+}
+
+/** PaymentFilterDto (extends PaginationDto) + the `totalConfirmed` sum the server adds. */
+export interface PaymentFilter {
+  page?: number
+  limit?: number
+  status?: PaymentStatus
+  method?: PaymentMethod
+  propertyId?: string
+  tenantId?: string
+  agreementId?: string
+  ownerId?: string
+  from?: string
+  to?: string
+}
+
+export interface PaymentPage extends Paginated<PaymentRecord> {
+  /** Sum of every CONFIRMED payment in the filtered set, in ETB. */
+  totalConfirmed: number
+}
+
+/** POST /payments/offline — RecordOfflinePaymentDto. */
+export interface RecordOfflinePaymentPayload {
+  invoiceId: string
+  /** Omit to pay the invoice in full. Larger amounts prepay later months. */
+  amount?: number
+  method: 'CASH' | 'BANK_TRANSFER'
+  providerReference?: string
+  bankName?: string
+  notes?: string
+  receiptUrl?: string
+}
+
+/** GET /dashboard/admin — platform oversight counters. */
+export interface AdminDashboard {
+  period: { start: string; end: string }
+  users: {
+    owners: number
+    ownersPendingApproval: number
+    tenants: number
+    managers: number
+    suspended: number
+  }
+  properties: number
+  units: { total: number; occupancyRate: number } & Partial<Record<UnitStatus, number>>
+  /** Keyed by AgreementStatus. */
+  agreements: Partial<Record<AgreementStatus, number>>
+  payments: {
+    confirmedVolume: number
+    confirmedCount: number
+    telebirrVolume: number
+    estimatedPlatformFee: number
+    pendingConfirmation: { method: PaymentMethod; count: number; amount: number }[]
+  }
+  disputes: { escalated: number; unresolvedPastSla: number }
+  payouts: { pendingCount: number; pendingAmount: number }
+  workOrdersOpen: number
+}
+
 /** GET /admin/users/:id adds relations and activity counts to the public user. */
 export interface AdminUserDetail extends PublicUser {
   employer: { id: string; fullName: string } | null
@@ -637,8 +780,11 @@ export interface PlatformStaffMember extends StaffMember {
 }
 
 export interface CreatePlatformStaffPayload extends CreateStaffPayload {
-  /** The owner this account works for. Platform staff manage every portfolio. */
-  ownerId: string
+  /**
+   * Optional owner to attach the account to. Omitted by the admin staff screen:
+   * the account belongs to Possible Technology and works across every owner.
+   */
+  ownerId?: string
 }
 
 export interface AuditLogActor {

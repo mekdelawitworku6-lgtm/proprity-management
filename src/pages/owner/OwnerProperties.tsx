@@ -126,17 +126,17 @@ export default function OwnerProperties() {
       {/* Header & Main Stats */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-xl font-bold text-slate-900 tracking-tight">My Buildings</h1>
-          <p className="text-xs text-slate-500">Manage your property portfolio and units</p>
+          <h1 className="text-xl font-extrabold text-slate-900 tracking-tight">My Building</h1>
+          <p className="text-xs text-slate-500 mt-0.5">Manage your property portfolio and units</p>
         </div>
 
         {canEdit && (
           <button
             onClick={handleOpenAdd}
-            className="inline-flex items-center gap-2 rounded-xl bg-[#0F2744] px-4 py-2.5 text-xs font-semibold text-white shadow-xs hover:bg-[#1A365D] transition self-start sm:self-auto"
+            className="inline-flex items-center gap-1.5 rounded-lg bg-[#003882] px-4 py-2 text-xs font-semibold text-white shadow-xs hover:bg-[#002b66] active:bg-[#00224f] transition self-start sm:self-auto"
           >
-            <Plus className="h-4 w-4" />
-            + Add New Building
+            <Plus className="h-4 w-4 stroke-[2.5]" />
+            Add New Building
           </button>
         )}
       </div>

@@ -37,13 +37,13 @@ export function OwnerLayout() {
 
   const navItems = [
     { to: '/owner/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { to: '/owner/properties', label: 'My Buildings', icon: Building2 },
+    { to: '/owner/properties', label: 'My Building', icon: Building2 },
     { to: '/owner/tenants', label: 'Tenants & Leases', icon: Users },
-    { to: '/owner/agreements', label: 'Digital Agreements', icon: FileSignature },
-    { to: '/owner/complaints', label: 'Maintenance & Reports', icon: Wrench },
-    { to: '/owner/payments', label: 'Payment History', icon: Receipt },
-    { to: '/owner/staff', label: 'Staff & Permissions', icon: UserCog, ownerOnly: true },
-    { to: '/owner/activity', label: 'Activity', icon: ScrollText, ownerOnly: true },
+    { to: '/owner/complaints', label: 'Maintenance', icon: Wrench },
+    { to: '/owner/payments', label: 'Transactions', icon: Receipt },
+    { to: '/owner/agreements', label: 'Agreements', icon: FileSignature },
+    { to: '/owner/staff', label: 'Staff & Roles', icon: UserCog, ownerOnly: true },
+    { to: '/owner/activity', label: 'Activity Logs', icon: ScrollText, ownerOnly: true },
     { to: '/owner/settings', label: 'Settings', icon: Settings },
   ].filter((item) => !item.ownerOnly || isOwner)
 
@@ -53,23 +53,17 @@ export function OwnerLayout() {
   }
 
   const sidebarContent = (
-    <div className="flex h-full flex-col justify-between border-r border-slate-200/80 bg-white px-4 py-5 shadow-xs">
+    <div className="flex h-full flex-col justify-between border-r border-slate-200 bg-white px-3.5 py-5 shadow-[0_1px_3px_rgba(0,0,0,0.02)]">
       <div>
-        {/* Owner Branding — shows who is signed in and whose portfolio this is */}
-        <div className="flex items-center gap-2.5 px-3 py-2">
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-600 font-black text-white text-xs shadow-xs">
-            {initials}
-          </div>
-          <div className="min-w-0">
-            <span className="block truncate text-sm font-extrabold tracking-tight text-slate-900">
-              {organization}
-            </span>
-            <p className="truncate text-[10px] font-medium text-slate-500">{displayName}</p>
-          </div>
+        {/* LOGO Branding matching Figma */}
+        <div className="flex items-center justify-between px-3 py-1 mb-6">
+          <span className="text-xl font-black tracking-wider text-blue-600">
+            LOGO
+          </span>
         </div>
 
         {/* Nav items */}
-        <nav className="mt-5 flex flex-col gap-1">
+        <nav className="flex flex-col gap-1">
           {navItems.map(({ to, label, icon: Icon }) => (
             <NavLink
               key={to}
@@ -77,10 +71,10 @@ export function OwnerLayout() {
               end={to === '/owner/dashboard'}
               onClick={() => setMobileOpen(false)}
               className={({ isActive }) =>
-                `flex items-center gap-3 rounded-xl px-3.5 py-2.5 text-xs font-semibold transition ${
+                `flex items-center gap-3 rounded-lg px-3.5 py-2.5 text-xs font-semibold tracking-tight transition ${
                   isActive
-                    ? 'bg-blue-50/80 text-blue-700 shadow-xs'
-                    : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'
+                    ? 'bg-slate-100 text-slate-900 shadow-xs'
+                    : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800'
                 }`
               }
             >
@@ -92,7 +86,7 @@ export function OwnerLayout() {
       </div>
 
       {/* Logout */}
-      <div className="border-t border-slate-100 pt-4 px-2">
+      <div className="border-t border-slate-100 pt-3 px-2">
         <button
           onClick={handleLogout}
           className="flex w-full items-center gap-2.5 rounded-lg px-2 py-2 text-xs font-medium text-rose-500 transition hover:bg-rose-50 hover:text-rose-600"
@@ -131,7 +125,7 @@ export function OwnerLayout() {
       {/* Main Container */}
       <div className="lg:pl-60 flex flex-col min-h-screen">
         {/* Owner Header */}
-        <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-slate-200/80 bg-white/95 px-4 lg:px-8 backdrop-blur-xs">
+        <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-slate-200/90 bg-white px-4 lg:px-8">
           <div className="flex items-center gap-3">
             <button
               onClick={() => setMobileOpen(true)}
@@ -139,41 +133,38 @@ export function OwnerLayout() {
             >
               <Menu className="h-5 w-5" />
             </button>
-            <div>
-              <span className="text-xs font-bold text-slate-800">
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-bold text-slate-800 tracking-tight">
                 Property Management Web Platform
-              </span>
-              <span className="hidden sm:inline-block ml-2 rounded-md bg-blue-50 px-2 py-0.5 text-[10px] font-bold text-blue-700">
-                Owner Mode
               </span>
             </div>
           </div>
 
           <div className="flex items-center gap-4">
-            <div className="relative hidden sm:block w-60">
-              <Search className="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
+            <div className="relative hidden sm:block w-64">
               <input
                 type="text"
                 placeholder="Search for..."
-                className="w-full rounded-lg border border-slate-200 bg-slate-50/70 py-1.5 pl-9 pr-3 text-xs text-slate-800 placeholder-slate-400 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-1 focus:ring-blue-500"
+                className="w-full rounded-lg border border-slate-200 bg-slate-50/50 py-1.5 pl-3.5 pr-9 text-xs text-slate-800 placeholder-slate-400 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-1 focus:ring-blue-500"
               />
+              <Search className="pointer-events-none absolute right-3 top-2.5 h-4 w-4 text-slate-400" />
             </div>
 
             <NotificationBell />
 
             <div className="flex items-center gap-2.5 pl-2 border-l border-slate-200">
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-100 text-blue-700 font-bold text-xs">
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-600 text-white font-bold text-xs shadow-xs">
                 {initials}
               </div>
               <div className="hidden text-left md:block">
-                <p className="text-xs font-semibold text-slate-800">{displayName}</p>
-                <p className="text-[10px] text-slate-400">{organization}</p>
+                <p className="text-xs font-bold text-slate-800">{displayName}</p>
+                <p className="text-[10px] text-slate-400 -mt-0.5">{organization}</p>
               </div>
             </div>
           </div>
         </header>
 
-        <main className="flex-1 p-4 lg:p-7">
+        <main className="flex-1 p-5 lg:p-8">
           <Outlet />
         </main>
       </div>

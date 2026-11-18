@@ -9,41 +9,26 @@ import {
   type ManagerPermission,
 } from '../../types/api'
 
-export interface StaffOwnerOption {
-  id: string
-  label: string
-}
-
-/** `ownerId` is only present when the caller manages more than one portfolio. */
-export type AddStaffRequest = CreateStaffPayload & { ownerId?: string }
-
 interface Props {
-  isOpen: boolean
-  onClose: () => void
-  onSubmit: (payload: AddStaffRequest) => Promise<void>
-  /**
-   * When provided, the caller manages more than one portfolio, so the owner has
-   * to be named and is sent back as `ownerId` on the payload.
-   */
-  owners?: StaffOwnerOption[]
+  isOpen: boolean;
+  onClose: () => void;
+  onSubmit: (payload: CreateStaffPayload) => Promise<void>;
 }
 
 /**
  * Adds a staff account and chooses exactly what it may do. Grants are always sent
  * explicitly, because the server treats a missing list as "allow everything".
  */
-export function AddStaffModal({ isOpen, onClose, onSubmit, owners }: Props) {
+export function AddStaffModal({ isOpen, onClose, onSubmit }: Props) {
   const log = useLogger('modals', 'AddStaffModal')
   const [fullName, setFullName] = useState('')
   const [phoneNumber, setPhoneNumber] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [permissions, setPermissions] = useState<ManagerPermission[]>([...MANAGER_PERMISSIONS])
-  const [ownerId, setOwnerId] = useState('')
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [isSaving, setIsSaving] = useState(false)
 
-  const needsOwner = Boolean(owners?.length)
   const grantedCount = permissions.length
   const hasEveryGrant = grantedCount === MANAGER_PERMISSIONS.length
 
@@ -72,7 +57,6 @@ export function AddStaffModal({ isOpen, onClose, onSubmit, owners }: Props) {
     setPhoneNumber('')
     setEmail('')
     setPassword('')
-    setOwnerId('')
     setPermissions([...MANAGER_PERMISSIONS])
     onClose()
   }
@@ -88,7 +72,6 @@ export function AddStaffModal({ isOpen, onClose, onSubmit, owners }: Props) {
         email: email.trim() || undefined,
         password,
         permissions,
-        ...(needsOwner ? { ownerId } : {}),
       })
       handleClose()
     } catch (error) {
@@ -125,28 +108,6 @@ export function AddStaffModal({ isOpen, onClose, onSubmit, owners }: Props) {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-5 px-6 py-5">
-          {needsOwner && (
-            <label className="block">
-              <span className="mb-1.5 block text-xs font-semibold text-slate-700">Works for owner</span>
-              <select
-                required
-                value={ownerId}
-                onChange={(e) => setOwnerId(e.target.value)}
-                className="w-full rounded-lg border border-slate-200 bg-slate-50/70 px-3 py-2 text-sm outline-none transition focus:border-blue-500 focus:bg-white focus:ring-1 focus:ring-blue-500"
-              >
-                <option value="">Choose an owner…</option>
-                {owners?.map((owner) => (
-                  <option key={owner.id} value={owner.id}>
-                    {owner.label}
-                  </option>
-                ))}
-              </select>
-              <p className="mt-1.5 text-[11px] text-slate-500">
-                The account is attributed to this owner and appears in their activity trail.
-              </p>
-            </label>
-          )}
-
           <div className="grid gap-4 sm:grid-cols-2">
             <label className="block">
               <span className="mb-1.5 block text-xs font-semibold text-slate-700">Full name</span>
@@ -265,7 +226,7 @@ export function AddStaffModal({ isOpen, onClose, onSubmit, owners }: Props) {
             </button>
             <button
               type="submit"
-              disabled={isSaving || !fullName.trim() || !phoneNumber.trim() || password.length < 8 || (needsOwner && !ownerId)}
+              disabled={isSaving || !fullName.trim() || !phoneNumber.trim() || password.length < 8}
               className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-xs font-bold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {isSaving && <Loader2 className="h-3.5 w-3.5 animate-spin" />}

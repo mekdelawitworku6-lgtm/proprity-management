@@ -1,5 +1,7 @@
 import { api, unwrapEnvelope } from './api'
 import type {
+  AdminDashboard,
+  AgreementDetail,
   AgreementFilter,
   AgreementSummary,
   AuditLogEntry,
@@ -16,11 +18,15 @@ import type {
   OwnerBalances,
   OwnerDashboard,
   Paginated,
+  PaymentFilter,
+  PaymentPage,
+  PaymentRecord,
   Property,
   PropertyBase,
   PropertyDetail,
   PropertyFilter,
   PublicUser,
+  RecordOfflinePaymentPayload,
   RegisterOwnerPayload,
   RegisterResponse,
   StaffMember,
@@ -99,6 +105,13 @@ export const propertyApi = api.injectEndpoints({
       query: (filter) => ({ url: '/agreements', params: filter ?? {} }),
       transformResponse: unwrapEnvelope,
       providesTags: ['Agreement'],
+    }),
+
+    /** Full signed agreement text plus the SHA-256 integrity verdict. */
+    getAgreement: builder.query<AgreementDetail, string>({
+      query: (id) => ({ url: `/agreements/${id}` }),
+      transformResponse: unwrapEnvelope,
+      providesTags: (_result, _error, id) => [{ type: 'Agreement', id }],
     }),
 
     getOwnerBalances: builder.query<OwnerBalances, void>({
@@ -189,6 +202,62 @@ export const complaintsApi = api.injectEndpoints({
         { type: 'Complaint', id: 'LIST' },
       ],
     }),
+
+    /** FR-ADM-03: official ruling on a dispute the owner escalated. Admin-only on the server. */
+    adminResolveComplaint: builder.mutation<
+      ComplaintListItem,
+      { id: string; resolution: string; status?: ComplaintStatus }
+    >({
+      query: ({ id, ...body }) => ({ url: `/complaints/${id}/admin-resolve`, method: 'POST', body }),
+      transformResponse: unwrapEnvelope,
+      invalidatesTags: (_result, _error, { id }) => [
+        { type: 'Complaint', id },
+        { type: 'Complaint', id: 'LIST' },
+      ],
+    }),
+  }),
+  overrideExisting: false,
+})
+
+export const billingApi = api.injectEndpoints({
+  endpoints: (builder) => ({
+    /**
+     * Rent/payment history. The server scopes it by role — an owner sees their whole
+     * portfolio, a tenant only their own payments — and adds `totalConfirmed` so the
+     * header can show real collected totals instead of summing the current page.
+     */
+    getPayments: builder.query<PaymentPage, PaymentFilter | void>({
+      query: (filter) => ({ url: '/payments', params: filter ?? {} }),
+      transformResponse: unwrapEnvelope,
+      providesTags: (result) => [
+        { type: 'Payment' as const, id: 'LIST' },
+        ...(result?.docs.map((payment) => ({ type: 'Payment' as const, id: payment.id })) ?? []),
+      ],
+    }),
+
+    /**
+     * Records a payment the owner received directly (cash, or a transfer that landed in
+     * their own account). Confirms immediately and spreads any surplus across later
+     * invoices, so an owner can log several months of rent in one go.
+     */
+    recordOfflinePayment: builder.mutation<PaymentRecord, RecordOfflinePaymentPayload>({
+      query: (body) => ({ url: '/payments/offline', method: 'POST', body }),
+      transformResponse: unwrapEnvelope,
+      invalidatesTags: [{ type: 'Payment', id: 'LIST' }, 'Balance', 'Dashboard', 'Agreement'],
+    }),
+
+    /** Settles a pending bank transfer the tenant submitted. */
+    confirmPayment: builder.mutation<PaymentRecord, { id: string; providerReference?: string; notes?: string }>({
+      query: ({ id, ...body }) => ({ url: `/payments/${id}/confirm`, method: 'PATCH', body }),
+      transformResponse: unwrapEnvelope,
+      invalidatesTags: [{ type: 'Payment', id: 'LIST' }, 'Balance', 'Dashboard', 'Agreement'],
+    }),
+
+    rejectPayment: builder.mutation<PaymentRecord, { id: string; reason: string }>({
+      query: ({ id, reason }) => ({ url: `/payments/${id}/reject`, method: 'PATCH', body: { reason } }),
+      transformResponse: unwrapEnvelope,
+      invalidatesTags: [{ type: 'Payment', id: 'LIST' }, 'Balance', 'Dashboard'],
+    }),
   }),
   overrideExisting: false,
 })
@@ -254,6 +323,24 @@ export const activityApi = api.injectEndpoints({
           .map((entry) => ({ type: 'Activity' as const, id: entry.actorId as string })) ?? []),
       ],
     }),
+
+    /** Platform-wide audit trail (FR-ADM-04). Admin and Ethio Telecom only. */
+    getPlatformAuditLogs: builder.query<Paginated<AuditLogEntry>, OwnerAuditFilter | void>({
+      query: (filter) => {
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const { includeViews, ...cleanParams } = (filter ?? {}) as Record<string, unknown>
+        return { url: '/admin/audit-logs', params: cleanParams }
+      },
+      transformResponse: unwrapEnvelope,
+      providesTags: ['Activity'],
+    }),
+
+    /** Platform oversight counters: users, units, agreements, collected volume, escalations. */
+    getAdminDashboard: builder.query<AdminDashboard, { month?: string } | void>({
+      query: (filter) => ({ url: '/dashboard/admin', params: filter ?? {} }),
+      transformResponse: unwrapEnvelope,
+      providesTags: ['Dashboard'],
+    }),
   }),
   overrideExisting: false,
 })
@@ -268,7 +355,12 @@ export const {
   useDeletePropertyMutation,
   useGetOwnerDashboardQuery,
   useGetAgreementsQuery,
+  useGetAgreementQuery,
   useGetOwnerBalancesQuery,
+  useGetPaymentsQuery,
+  useRecordOfflinePaymentMutation,
+  useConfirmPaymentMutation,
+  useRejectPaymentMutation,
   useUploadPropertyPhotosMutation,
   useGetComplaintsQuery,
   useGetComplaintQuery,
@@ -276,9 +368,12 @@ export const {
   useUpdateComplaintStatusMutation,
   useRespondToComplaintMutation,
   useEscalateComplaintMutation,
+  useAdminResolveComplaintMutation,
   useGetStaffQuery,
   useCreateStaffMutation,
   useSetStaffPermissionsMutation,
   useSetStaffActiveMutation,
   useGetMyActivityQuery,
-} = { ...authApi, ...propertyApi, ...complaintsApi, ...teamApi, ...activityApi }
+  useGetPlatformAuditLogsQuery,
+  useGetAdminDashboardQuery,
+} = { ...authApi, ...propertyApi, ...complaintsApi, ...billingApi, ...teamApi, ...activityApi }

@@ -70,7 +70,7 @@ export default function Login() {
     if (isSubmitting) return
     setNotice(null)
     log.info('login submit', { identifier, portal })
-    const user = await login({ identifier: identifier.trim(), password })
+    const user = await login({ identifier: identifier.trim(), password: password.trim() })
     if (!user) return
 
     if (user.isSuspended) {

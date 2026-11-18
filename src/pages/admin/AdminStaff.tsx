@@ -11,17 +11,17 @@ import {
 } from 'lucide-react'
 import {
   useCreatePlatformStaffMutation,
-  useGetAdminUsersQuery,
   useGetPlatformStaffQuery,
   useSetPlatformStaffActiveMutation,
   useSetPlatformStaffPermissionsMutation,
 } from '../../store/adminApi'
 import { toErrorMessage } from '../../store/api'
 import { useLogger } from '../../utils/logger'
-import { AddStaffModal, type AddStaffRequest, type StaffOwnerOption } from '../../components/modals/AddStaffModal'
+import { AddStaffModal } from '../../components/modals/AddStaffModal'
 import {
   MANAGER_PERMISSION_GROUPS,
   MANAGER_PERMISSIONS,
+  type CreateStaffPayload,
   type ManagerPermission,
   type PlatformStaffMember,
 } from '../../types/api'
@@ -33,7 +33,9 @@ function describeGrants(permissions: ManagerPermission[]): { area: string; grant
   }).filter((entry) => entry.granted > 0)
 }
 
+/** Staff the platform appointed directly have no employer and work platform-wide. */
 function ownerLabel(staff: PlatformStaffMember): string {
+  if (!staff.employerId) return 'Possible Technology (all owners)'
   return staff.employer?.ownerProfile?.companyName || staff.employer?.fullName || 'Unknown owner'
 }
 
@@ -165,16 +167,17 @@ function StaffRow({
 }
 
 /**
- * Platform-wide staff oversight. Unlike the owner screen this is not scoped to a
- * single portfolio, so every account carries the owner it works for and the
- * owner must be named when creating one.
+ * Platform-wide staff oversight. Staff the platform appoints belong to Possible
+ * Technology and work across every owner, so there is no owner to choose here:
+ * the account is created unattached and the admin decides exactly what it may do
+ * with the permission grants. Accounts an owner created still appear here, each
+ * labelled with the owner it belongs to.
  */
 export function AdminStaff() {
   const log = useLogger('admin', 'AdminStaff')
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [notice, setNotice] = useState<string | null>(null)
   const [search, setSearch] = useState('')
-  const [ownerFilter, setOwnerFilter] = useState('')
   const [page, setPage] = useState(1)
   const [draft, setDraft] = useState<Record<string, ManagerPermission[]>>({})
 
@@ -182,28 +185,14 @@ export function AdminStaff() {
     page,
     limit: 20,
     search: search.trim() || undefined,
-    ownerId: ownerFilter || undefined,
   })
-  const { data: ownersPage } = useGetAdminUsersQuery({ role: 'OWNER', limit: 100 })
   const [createStaff, { isLoading: isCreating }] = useCreatePlatformStaffMutation()
   const [setPermissions, { isLoading: isSavingPermissions }] = useSetPlatformStaffPermissionsMutation()
   const [setActive, { isLoading: isSavingActive }] = useSetPlatformStaffActiveMutation()
 
-  const ownerOptions: StaffOwnerOption[] = (ownersPage?.docs ?? []).map((owner) => ({
-    id: owner.id,
-    label: owner.ownerProfile?.companyName || owner.fullName,
-  }))
-
-  const handleCreate = async (payload: AddStaffRequest) => {
-    if (!payload.ownerId) {
-      setNotice('Choose the owner this staff account works for.')
-      return
-    }
-    await createStaff({ ...payload, ownerId: payload.ownerId }).unwrap()
-    const owner = ownerOptions.find((option) => option.id === payload.ownerId)
-    setNotice(
-      `${payload.fullName.trim()} can now sign in${owner ? ` and works for ${owner.label}` : ''}.`
-    )
+  const handleCreate = async (payload: CreateStaffPayload) => {
+    await createStaff(payload).unwrap()
+    setNotice(`${payload.fullName.trim()} can now sign in and work across every owner.`)
   }
 
   const handleTogglePermission = (staffId: string, permission: ManagerPermission) => {
@@ -270,25 +259,26 @@ export function AdminStaff() {
         <div>
           <h1 className="text-xl font-extrabold tracking-tight text-slate-900">Staff management</h1>
           <p className="mt-0.5 text-xs text-slate-500">
-            Every staff account across all owners, and exactly what each one may do.
+            Every staff account on the platform, and exactly what each one may do.
           </p>
         </div>
         <button
           onClick={() => setIsModalOpen(true)}
-          disabled={ownerOptions.length === 0}
-          className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-3.5 py-2 text-xs font-bold text-white transition hover:bg-blue-700 disabled:opacity-50"
+          className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-3.5 py-2 text-xs font-bold text-white transition hover:bg-blue-700"
         >
           <Plus className="h-4 w-4" />
           Add staff
         </button>
       </div>
 
-      {ownerOptions.length === 0 && (
-        <div className="flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-[11px] text-amber-800">
-          <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-          <p>There are no approved owners yet, so there is nobody to add staff for.</p>
-        </div>
-      )}
+      <div className="flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-[11px] text-amber-800">
+        <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+        <p>
+          Staff you add here belong to Possible Technology and can work across <em>every</em> owner, limited
+          only by the permissions you grant. Accounts an owner created for themselves are also listed, each
+          labelled with the owner they belong to.
+        </p>
+      </div>
 
       <div className="flex flex-wrap items-center gap-2">
         <input
@@ -300,21 +290,6 @@ export function AdminStaff() {
           placeholder="Search name, phone or email"
           className="min-w-56 flex-1 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs outline-none transition focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
         />
-        <select
-          value={ownerFilter}
-          onChange={(e) => {
-            setOwnerFilter(e.target.value)
-            setPage(1)
-          }}
-          className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs outline-none transition focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-        >
-          <option value="">All owners</option>
-          {ownerOptions.map((owner) => (
-            <option key={owner.id} value={owner.id}>
-              {owner.label}
-            </option>
-          ))}
-        </select>
       </div>
 
       {notice && (
@@ -347,9 +322,9 @@ export function AdminStaff() {
           </span>
           <p className="text-sm font-bold text-slate-800">No staff accounts found</p>
           <p className="max-w-sm text-xs text-slate-500">
-            {search || ownerFilter
-              ? 'No account matches the current search or owner filter.'
-              : 'Owners add their own staff from their portal; you can also appoint staff for them here.'}
+            {search
+              ? 'No account matches the current search.'
+              : 'Owners add their own staff from their portal; you can also appoint platform staff here.'}
           </p>
         </div>
       )}
@@ -422,7 +397,6 @@ export function AdminStaff() {
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         onSubmit={handleCreate}
-        owners={ownerOptions}
       />
       {isCreating && <span className="sr-only">Adding staff…</span>}
     </div>

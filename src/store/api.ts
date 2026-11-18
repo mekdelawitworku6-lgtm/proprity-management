@@ -65,6 +65,7 @@ export const api = createApi({
     'Agreement',
     'Balance',
     'Complaint',
+    'Payment',
     'Staff',
     'Activity',
   ],

@@ -1,245 +1,257 @@
-import { useState } from 'react'
-import { Search, Download } from 'lucide-react'
-import { usePlatform } from '../../store/hooks'
-import type { Transaction } from '../../types'
+import { useMemo, useState } from 'react'
+import { Search, Receipt, AlertCircle, Loader2 } from 'lucide-react'
+import { useGetPaymentsQuery } from '../../store/propertyApi'
+import { toErrorMessage } from '../../store/api'
+import {
+  formatCompactMoney,
+  formatDateTime,
+  matchesPaymentSearch,
+  providerReference,
+} from '../../components/payments/paymentDisplay'
+import { Pagination } from '../../components/Pagination'
+import type { PaymentMethod, PaymentStatus } from '../../types/api'
+
+const PAGE_SIZE = 25
+
+const CATEGORY_TABS = [
+  { label: 'All', value: 'ALL' },
+  { label: 'Rent Payments', value: 'RENT' },
+  { label: 'Deposits', value: 'DEPOSIT' },
+  { label: 'Fees & Utilities', value: 'UTILITIES' },
+  { label: 'Refunds', value: 'REFUNDS' },
+]
 
 export default function OwnerPayments() {
-  const { transactions } = usePlatform()
-  const [activeTab, setActiveTab] = useState<string>('All')
+  const [activeCategoryTab, setActiveCategoryTab] = useState('ALL')
   const [searchQuery, setSearchQuery] = useState('')
-  const [statusFilter, setStatusFilter] = useState('All Status')
-  const [methodFilter, setMethodFilter] = useState('All Methods')
+  const [statusFilter, setStatusFilter] = useState('ALL')
+  const [methodFilter, setMethodFilter] = useState('ALL')
+  const [page, setPage] = useState(1)
 
-  // Calculations
-  const totalRevETB = transactions
-    .filter((t) => t.status === 'Completed' && t.type !== 'Refund')
-    .reduce((acc, t) => acc + t.amount, 0)
-
-  const completedCount = transactions.filter((t) => t.status === 'Completed').length
-  const pendingCount = transactions.filter((t) => t.status === 'Pending').length
-  const depositsTotalETB = transactions
-    .filter((t) => t.type === 'Deposit')
-    .reduce((acc, t) => acc + t.amount, 0)
-
-  const filteredTransactions = transactions.filter((t) => {
-    let matchesTab = true
-    if (activeTab === 'Rent Payments') matchesTab = t.type === 'Rent'
-    else if (activeTab === 'Deposits') matchesTab = t.type === 'Deposit'
-    else if (activeTab === 'Fees & Utilities') matchesTab = t.type === 'Utility' || t.type === 'Fee'
-    else if (activeTab === 'Refunds') matchesTab = t.type === 'Refund'
-
-    const matchesSearch =
-      t.code.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      t.tenantName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      t.unitNo.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      t.buildingName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      t.reference.toLowerCase().includes(searchQuery.toLowerCase())
-
-    const matchesStatus = statusFilter === 'All Status' ? true : t.status === statusFilter
-    const matchesMethod = methodFilter === 'All Methods' ? true : t.method === methodFilter
-
-    return matchesTab && matchesSearch && matchesStatus && matchesMethod
+  const { data, isLoading, isFetching, error, refetch } = useGetPaymentsQuery({
+    page,
+    limit: PAGE_SIZE,
+    status: statusFilter === 'ALL' ? undefined : (statusFilter as PaymentStatus),
+    method: methodFilter === 'ALL' ? undefined : (methodFilter as PaymentMethod),
   })
 
-  const getTypeBadge = (type: Transaction['type']) => {
-    switch (type) {
-      case 'Rent':
-        return 'bg-blue-50 text-blue-700 border border-blue-200'
-      case 'Utility':
-        return 'bg-purple-50 text-purple-700 border border-purple-200'
-      case 'Deposit':
-        return 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-      case 'Fee':
-        return 'bg-amber-50 text-amber-700 border border-amber-200'
-      case 'Refund':
-        return 'bg-rose-50 text-rose-700 border border-rose-200'
-    }
-  }
+  const payments = useMemo(() => data?.docs ?? [], [data])
+
+  const filtered = useMemo(
+    () => payments.filter((payment) => matchesPaymentSearch(payment, searchQuery)),
+    [payments, searchQuery],
+  )
+
+  const totalConfirmed = data?.totalConfirmed ?? 0
+  const completedCount = payments.filter((payment) => payment.status === 'CONFIRMED').length
+  const pendingCount = payments.filter((payment) => payment.status === 'PENDING').length
+  const depositCount = payments.filter(
+    (payment) => payment.invoice?.type === 'DEPOSIT' && payment.status === 'CONFIRMED',
+  ).length
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-xl font-bold text-slate-900 tracking-tight">Payment History & Rent Ledger</h1>
-          <p className="text-xs text-slate-500">
-            Track rent collections, utility reimbursements, and Telebirr digital payment confirmations
-          </p>
-        </div>
+      <div>
+        <h1 className="text-xl font-extrabold text-slate-900 tracking-tight">Transactions</h1>
+        <p className="text-xs text-slate-500 mt-0.5">
+          Track all financial transactions and payment history
+        </p>
+      </div>
 
-        <div className="flex items-center gap-2 self-start sm:self-auto">
-          <button
-            onClick={() => alert('Exporting rent statement CSV...')}
-            className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 shadow-xs hover:bg-slate-50 transition"
-          >
-            <Download className="h-4 w-4 text-slate-500" />
-            Export Statement
-          </button>
+      {/* 4 Stat Cards matching Figma */}
+      <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-xs">
+          <span className="text-xs font-medium text-slate-500">Total Revenue</span>
+          <p className="mt-2 text-2xl font-bold text-slate-900">{formatCompactMoney(totalConfirmed)} ETB</p>
+        </div>
+        <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-xs">
+          <span className="text-xs font-medium text-slate-500">Completed</span>
+          <p className="mt-2 text-2xl font-bold text-slate-900">{completedCount}</p>
+        </div>
+        <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-xs">
+          <span className="text-xs font-medium text-slate-500">Pending</span>
+          <p className="mt-2 text-2xl font-bold text-slate-900">{pendingCount}</p>
+        </div>
+        <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-xs">
+          <span className="text-xs font-medium text-slate-500">Confirmed Deposits (this page)</span>
+          <p className="mt-2 text-2xl font-bold text-slate-900">{depositCount}</p>
         </div>
       </div>
 
-      {/* 4 Stat Cards */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <div className="rounded-xl border border-slate-200/90 bg-white p-4 shadow-xs">
-          <span className="text-xs font-medium text-slate-500">Total Rent Collected</span>
-          <p className="mt-1.5 text-2xl font-bold text-slate-900">
-            {(totalRevETB / 1000).toFixed(1)}K ETB
-          </p>
-        </div>
-
-        <div className="rounded-xl border border-slate-200/90 bg-white p-4 shadow-xs">
-          <span className="text-xs font-medium text-slate-500">Completed Payments</span>
-          <p className="mt-1.5 text-2xl font-bold text-emerald-600">{completedCount}</p>
-        </div>
-
-        <div className="rounded-xl border border-slate-200/90 bg-white p-4 shadow-xs">
-          <span className="text-xs font-medium text-slate-500">Pending Clearances</span>
-          <p className="mt-1.5 text-2xl font-bold text-amber-600">{pendingCount}</p>
-        </div>
-
-        <div className="rounded-xl border border-slate-200/90 bg-white p-4 shadow-xs">
-          <span className="text-xs font-medium text-slate-500">Security Deposits Held</span>
-          <p className="mt-1.5 text-2xl font-bold text-slate-900">
-            {(depositsTotalETB / 1000).toFixed(1)}K ETB
-          </p>
-        </div>
-      </div>
-
-      {/* Filter Row */}
+      {/* Search & Dropdown Filters Bar */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
         <div className="relative flex-1">
-          <Search className="pointer-events-none absolute left-3.5 top-2.5 h-4 w-4 text-slate-400" />
           <input
             type="text"
-            placeholder="Search payments by tenant, unit, reference code..."
+            placeholder="Search by tenant, building, invoice or reference..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full rounded-xl border border-slate-200/90 bg-white py-2 pl-10 pr-4 text-xs text-slate-800 placeholder-slate-400 outline-none shadow-xs transition focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+            className="w-full rounded-lg border border-slate-200 bg-white py-2 pl-3.5 pr-10 text-xs text-slate-800 placeholder-slate-400 outline-none shadow-xs transition focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
           />
+          <Search className="pointer-events-none absolute right-3.5 top-2.5 h-4 w-4 text-slate-400" />
         </div>
 
-        <div className="flex items-center gap-2">
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="rounded-xl border border-slate-200/90 bg-white px-3 py-2 text-xs font-medium text-slate-700 outline-none shadow-xs transition focus:border-blue-500"
-          >
-            <option value="All Status">All Status</option>
-            <option value="Completed">Completed</option>
-            <option value="Pending">Pending</option>
-            <option value="Failed">Failed</option>
-          </select>
+        <select
+          value={statusFilter}
+          onChange={(e) => {
+            setStatusFilter(e.target.value)
+            setPage(1)
+          }}
+          className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 outline-none shadow-xs transition focus:border-blue-500"
+        >
+          <option value="ALL">All Status</option>
+          <option value="CONFIRMED">Completed</option>
+          <option value="PENDING">Pending</option>
+          <option value="REJECTED">Failed</option>
+        </select>
 
-          <select
-            value={methodFilter}
-            onChange={(e) => setMethodFilter(e.target.value)}
-            className="rounded-xl border border-slate-200/90 bg-white px-3 py-2 text-xs font-medium text-slate-700 outline-none shadow-xs transition focus:border-blue-500"
-          >
-            <option value="All Methods">All Methods</option>
-            <option value="Telebirr">Telebirr</option>
-            <option value="CBE Birr">CBE Birr</option>
-            <option value="Commercial Bank of Ethiopia">Commercial Bank of Ethiopia</option>
-            <option value="Awash Bank">Awash Bank</option>
-            <option value="Cash">Cash</option>
-          </select>
-        </div>
+        <select
+          value={methodFilter}
+          onChange={(e) => {
+            setMethodFilter(e.target.value)
+            setPage(1)
+          }}
+          className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 outline-none shadow-xs transition focus:border-blue-500"
+        >
+          <option value="ALL">All Methods</option>
+          <option value="TELEBIRR">Telebirr</option>
+          <option value="BANK_TRANSFER">Bank transfer</option>
+          <option value="CASH">Cash</option>
+        </select>
       </div>
 
-      {/* Tabs */}
-      <div className="flex flex-wrap items-center gap-1.5 border-b border-slate-200 pb-2 text-xs font-semibold">
-        {['All', 'Rent Payments', 'Deposits', 'Fees & Utilities', 'Refunds'].map((tab) => (
+      {/* Category Tabs Row matching Figma */}
+      <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 pb-2 text-xs">
+        {CATEGORY_TABS.map((tab) => (
           <button
-            key={tab}
-            onClick={() => setActiveTab(tab)}
-            className={`rounded-lg px-3 py-1.5 transition ${
-              activeTab === tab
-                ? 'bg-slate-900 text-white shadow-xs'
+            key={tab.value}
+            onClick={() => setActiveCategoryTab(tab.value)}
+            className={`rounded-lg px-3 py-1.5 font-semibold transition ${
+              activeCategoryTab === tab.value
+                ? 'bg-blue-50 text-blue-700 shadow-xs'
                 : 'text-slate-500 hover:bg-slate-100 hover:text-slate-900'
             }`}
           >
-            {tab} {tab === 'All' ? `(${transactions.length})` : ''}
+            {tab.label}
           </button>
         ))}
       </div>
 
-      {/* Transactions Table */}
-      <div className="overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-xs">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs">
-            <thead>
-              <tr className="border-b border-slate-200 bg-slate-50/70 text-[11px] font-bold uppercase tracking-wider text-slate-500">
-                <th className="px-4 py-3.5">Transaction ID</th>
-                <th className="px-4 py-3.5">Date & Time</th>
-                <th className="px-4 py-3.5">Tenant</th>
-                <th className="px-4 py-3.5">Type</th>
-                <th className="px-4 py-3.5">Category</th>
-                <th className="px-4 py-3.5">Amount</th>
-                <th className="px-4 py-3.5">Method</th>
-                <th className="px-4 py-3.5">Ethio Telecom Ref</th>
-                <th className="px-4 py-3.5">Status</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {filteredTransactions.map((tx) => (
-                <tr key={tx.id} className="hover:bg-slate-50/80 transition">
-                  <td className="px-4 py-3 font-mono font-bold text-blue-600">
-                    {tx.code}
-                  </td>
-                  <td className="px-4 py-3 text-slate-500 whitespace-nowrap">
-                    {tx.dateTime}
-                  </td>
-                  <td className="px-4 py-3 font-semibold text-slate-900">
-                    <div>{tx.tenantName}</div>
-                    <div className="text-[10px] font-normal text-slate-400">
-                      {tx.unitNo} • {tx.buildingName}
-                    </div>
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className={`rounded-md px-2 py-0.5 text-[10px] font-medium ${getTypeBadge(tx.type)}`}>
-                      {tx.type}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-slate-600 font-medium">
-                    {tx.category}
-                  </td>
-                  <td className="px-4 py-3 font-bold whitespace-nowrap">
-                    <span
-                      className={
-                        tx.type === 'Refund'
-                          ? 'text-rose-600'
-                          : tx.status === 'Pending'
-                          ? 'text-amber-600'
-                          : 'text-emerald-600'
-                      }
-                    >
-                      {tx.type === 'Refund' ? '-' : '+'}
-                      {tx.amount.toLocaleString()} ETB
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-slate-700 font-medium">
-                    {tx.method}
-                  </td>
-                  <td className="px-4 py-3 font-mono text-[11px] text-slate-400">
-                    {tx.ethioTelecomConfirmationId || tx.reference}
-                  </td>
-                  <td className="px-4 py-3">
-                    <span
-                      className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold ${
-                        tx.status === 'Completed'
-                          ? 'bg-emerald-50 text-emerald-700'
-                          : tx.status === 'Pending'
-                          ? 'bg-amber-50 text-amber-700'
-                          : 'bg-rose-50 text-rose-700'
-                      }`}
-                    >
-                      {tx.status}
-                    </span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      {/* Error */}
+      {error && (
+        <div className="flex items-start gap-2.5 rounded-xl border border-rose-200 bg-rose-50 p-3.5 text-xs text-rose-800">
+          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-rose-500" />
+          <div>
+            <p className="font-semibold">Could not load payments</p>
+            <p className="mt-0.5">{toErrorMessage(error)}</p>
+            <button
+              onClick={() => refetch()}
+              className="mt-2 rounded-lg border border-rose-300 bg-white px-2.5 py-1 text-[11px] font-bold text-rose-700 hover:bg-rose-100"
+            >
+              Try again
+            </button>
+          </div>
         </div>
+      )}
+
+      {/* Transactions Table matching Figma */}
+      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xs">
+        {isLoading ? (
+          <div className="flex items-center justify-center gap-2 px-4 py-14 text-xs font-medium text-slate-500">
+            <Loader2 className="h-4 w-4 animate-spin text-blue-500" /> Loading transactions…
+          </div>
+        ) : !payments.length ? (
+          <div className="flex flex-col items-center px-6 py-14 text-center">
+            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-100 text-slate-400">
+              <Receipt className="h-5 w-5" />
+            </div>
+            <p className="mt-3 text-sm font-bold text-slate-800">No transactions yet</p>
+            <p className="mt-1 max-w-md text-xs leading-relaxed text-slate-500">
+              Transactions will appear here once rent or deposits are settled.
+            </p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs">
+              <thead>
+                <tr className="border-b border-slate-200 bg-slate-50/70 text-[11px] font-bold text-slate-500">
+                  <th className="px-4 py-3.5">Transaction ID</th>
+                  <th className="px-4 py-3.5">Date &amp; Time</th>
+                  <th className="px-4 py-3.5">Tenant</th>
+                  <th className="px-4 py-3.5">Type</th>
+                  <th className="px-4 py-3.5">Category</th>
+                  <th className="px-4 py-3.5">Amount</th>
+                  <th className="px-4 py-3.5">Method</th>
+                  <th className="px-4 py-3.5">Reference</th>
+                  <th className="px-4 py-3.5">Status</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {filtered.map((payment) => {
+                  const invoiceType = payment.invoice?.type
+                  const isDeposit = invoiceType === 'DEPOSIT'
+                  const typeLabel = isDeposit ? 'Deposit' : invoiceType === 'PENALTY' ? 'Penalty' : 'Rent'
+                  const typeBadgeClass = isDeposit
+                    ? 'bg-purple-50 text-purple-700 border border-purple-200'
+                    : 'bg-blue-50 text-blue-700 border border-blue-200'
+                  const isPending = payment.status === 'PENDING'
+
+                  return (
+                    <tr key={payment.id} className="transition hover:bg-slate-50/70">
+                      <td className="px-4 py-3.5 font-mono font-bold text-blue-600">
+                        {payment.referenceNo}
+                      </td>
+                      <td className="whitespace-nowrap px-4 py-3.5 text-slate-500 text-[11px]">
+                        {formatDateTime(payment.createdAt)}
+                      </td>
+                      <td className="px-4 py-3.5">
+                        <div className="font-bold text-slate-900">{payment.tenant.fullName}</div>
+                        <div className="text-[10px] text-slate-400">{payment.property.name}</div>
+                      </td>
+                      <td className="px-4 py-3.5">
+                        <span className={`inline-block rounded-md px-2 py-0.5 text-[10px] font-semibold ${typeBadgeClass}`}>
+                          {typeLabel}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3.5 text-slate-700 text-[11px] font-medium">
+                        {isDeposit ? 'Security Deposit' : invoiceType === 'PENALTY' ? 'Late Fee' : 'Rent Payment'}
+                      </td>
+                      <td className="whitespace-nowrap px-4 py-3.5 font-bold text-emerald-600">
+                        +{payment.amount.toLocaleString()} ETB
+                      </td>
+                      <td className="px-4 py-3.5 text-slate-700 text-[11px]">
+                        {payment.method === 'TELEBIRR' ? 'Telebirr' : payment.method === 'BANK_TRANSFER' ? 'Bank Transfer' : 'Cash'}
+                      </td>
+                      <td className="px-4 py-3.5 font-mono text-[11px] text-slate-400">
+                        {providerReference(payment) || '—'}
+                      </td>
+                      <td className="px-4 py-3.5">
+                        {isPending ? (
+                          <span className="inline-block rounded-md bg-amber-500 px-2.5 py-0.5 text-[10px] font-bold text-white shadow-xs">
+                            Pending
+                          </span>
+                        ) : (
+                          <span className="inline-block rounded-md bg-emerald-500 px-2.5 py-0.5 text-[10px] font-bold text-white shadow-xs">
+                            Completed
+                          </span>
+                        )}
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        <Pagination
+          page={page}
+          totalPages={data?.totalPages ?? 1}
+          total={data?.total ?? 0}
+          isFetching={isFetching}
+          onChange={setPage}
+        />
       </div>
     </div>
   )
