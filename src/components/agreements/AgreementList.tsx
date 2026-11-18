@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Search, Download, CheckCircle2, Eye, X, FileText, Loader2, AlertCircle } from 'lucide-react'
+import { Search, Download, CheckCircle2, Eye, X, FileText, Loader2, AlertCircle, RefreshCw } from 'lucide-react'
 import { useGetAgreementQuery } from '../../store/propertyApi'
 import { toErrorMessage } from '../../store/api'
 import { formatMoney } from '../payments/paymentDisplay'
@@ -43,6 +43,7 @@ export interface AgreementListProps {
   total: number
   isFetching?: boolean
   onPageChange: (page: number) => void
+  onRenew?: (agreement: AgreementSummary) => void
 }
 
 const STATUS_TABS: { label: string; value: AgreementStatus | 'ALL' }[] = [
@@ -68,6 +69,7 @@ export function AgreementList({
   total,
   isFetching,
   onPageChange,
+  onRenew,
 }: AgreementListProps) {
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedId, setSelectedId] = useState<string | null>(null)
@@ -215,25 +217,35 @@ export function AgreementList({
                 </div>
               </div>
 
-              <div className="mt-4 flex items-center justify-between border-t border-slate-100 pt-3">
+              <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-3">
                 <button
                   onClick={() => setSelectedId(agreement.id)}
                   className="inline-flex items-center gap-1 text-xs font-semibold text-blue-600 hover:text-blue-800"
                 >
                   <Eye className="h-3.5 w-3.5" /> View Agreement
                 </button>
-                <button
-                  onClick={() => downloadPdf(agreement.id, agreement.referenceNo)}
-                  disabled={downloadingId === agreement.id}
-                  className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-50"
-                >
-                  {downloadingId === agreement.id ? (
-                    <Loader2 className="h-3.5 w-3.5 animate-spin text-blue-500" />
-                  ) : (
-                    <Download className="h-3.5 w-3.5 text-slate-400" />
-                  )}{' '}
-                  PDF
-                </button>
+                <div className="flex items-center gap-1.5">
+                  {onRenew && agreement.status === 'ACTIVE' && (
+                    <button
+                      onClick={() => onRenew(agreement)}
+                      className="inline-flex items-center gap-1 rounded-lg border border-blue-200 bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700 hover:bg-blue-100"
+                    >
+                      <RefreshCw className="h-3.5 w-3.5" /> Renew
+                    </button>
+                  )}
+                  <button
+                    onClick={() => downloadPdf(agreement.id, agreement.referenceNo)}
+                    disabled={downloadingId === agreement.id}
+                    className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+                  >
+                    {downloadingId === agreement.id ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin text-blue-500" />
+                    ) : (
+                      <Download className="h-3.5 w-3.5 text-slate-400" />
+                    )}{' '}
+                    PDF
+                  </button>
+                </div>
               </div>
             </div>
           ))}

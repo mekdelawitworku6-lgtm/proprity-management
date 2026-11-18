@@ -231,8 +231,8 @@ We would rather tell you than let you discover it:
   or have the owner record their payment as cash/bank.
 - **Reports are capped at 5,000 rows.** Payment, agreement and audit exports use the same
   server-side Excel/PDF generator; very large extracts are truncated to keep the server safe.
-- **Prepayment covers already-generated invoices only.** Invoices are created a short window ahead,
-  so paying 12 months at once will not work until those months have been generated.
+- **Due-soon invoices are generated automatically.** Starting a payment creates the rest of the
+  agreement's rent invoices, so 6- or 12-month prepayment works right away.
 - **SMS, Telebirr, and Telegram run in mock mode by default.** Real delivery needs real credentials.
 - **Text search is page-local.** Status and method filters go to the server, but typing in the
   search box only filters the records on the current page.

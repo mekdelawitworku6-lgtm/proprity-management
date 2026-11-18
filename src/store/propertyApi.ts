@@ -27,6 +27,7 @@ import type {
   PropertyFilter,
   PublicUser,
   RecordOfflinePaymentPayload,
+  RenewAgreementPayload,
   RegisterOwnerPayload,
   RegisterResponse,
   StaffMember,
@@ -112,6 +113,12 @@ export const propertyApi = api.injectEndpoints({
       query: (id) => ({ url: `/agreements/${id}` }),
       transformResponse: unwrapEnvelope,
       providesTags: (_result, _error, id) => [{ type: 'Agreement', id }],
+    }),
+
+    renewAgreement: builder.mutation<AgreementSummary, { id: string; body: RenewAgreementPayload }>({
+      query: ({ id, body }) => ({ url: `/agreements/${id}/renew`, method: 'POST', body }),
+      transformResponse: unwrapEnvelope,
+      invalidatesTags: ['Agreement', 'Balance', 'Dashboard'],
     }),
 
     getOwnerBalances: builder.query<OwnerBalances, void>({
@@ -356,6 +363,7 @@ export const {
   useGetOwnerDashboardQuery,
   useGetAgreementsQuery,
   useGetAgreementQuery,
+  useRenewAgreementMutation,
   useGetOwnerBalancesQuery,
   useGetPaymentsQuery,
   useRecordOfflinePaymentMutation,

@@ -410,6 +410,14 @@ export interface AgreementSummary {
   owner: AgreementPartyRef
 }
 
+/** POST /agreements/:id/renew — RenewAgreementDto. */
+export interface RenewAgreementPayload {
+  durationMonths: number
+  rentAmount?: number
+  depositAmount?: number
+  specialTerms?: string
+}
+
 /** AgreementFilterDto (extends PaginationDto). */
 export interface AgreementFilter {
   page?: number

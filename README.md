@@ -216,6 +216,8 @@ either reject the payment ("amount exceeds balance") or dump the surplus somewhe
    leaves the invoice `PARTIALLY_PAID`.
 7. **Prepayment is labelled.** On confirmation the payment records `prepaidMonths` (periods
    covered), `creditAmount` (leftover), and `prepaidThrough` (when coverage runs out).
+8. **Future invoices are generated on demand.** Starting a payment creates the active
+   agreement's remaining rent invoices, so a 6/12-month prepayment works immediately.
 
 ### 5.3 Worked example
 
@@ -393,7 +395,8 @@ curl -s http://localhost:4100/api/v1/invoices?status=UNPAID \
 # note an invoice id and its `amount`
 ```
 
-Then record an offline payment for **more** than that amount (two months' rent):
+Then record an offline payment for **more** than that amount (two months' rent). The remaining
+rent invoices for the agreement are generated automatically when the payment is accepted:
 
 ```bash
 curl -s -X POST http://localhost:4100/api/v1/payments/offline \
@@ -786,6 +789,7 @@ When a module gains a feature, add scenarios to its e2e suite in
 
 | Change | Why |
 |---|---|
+| Rent invoices generated on demand when a payment starts | 6/12-month prepayment works immediately instead of waiting for the daily scheduler |
 | Working Excel/PDF downloads wired to `/reports` | Export buttons no longer show placeholder alerts; a shared auth-aware blob helper triggers real browser downloads |
 | Report generators for agreement registry, audit trail and single-agreement certificate | The remaining export buttons now produce real files from the same Excel/PDF renderer |
 | Server-side pagination on payments and agreements | Screens request a page and show real `total`/`totalPages` instead of a fixed 50-row window |
@@ -812,10 +816,9 @@ When a module gains a feature, add scenarios to its e2e suite in
   only; status/method filters and paging are handled by the server.
 - **Exports are capped.** Agreement-registry and audit-trail downloads return at most 5,000
   rows so a report cannot exhaust server memory.
-- **Invoice generation is scheduler-driven.** After signing, only invoices due within the
-  advance window (default 7 days, `INVOICE_ADVANCE_DAYS`) exist. **Prepayment therefore
-  applies only to already-generated invoices** — prepaying 12 months in one go cannot work
-  until the earlier months' invoices have been generated.
+- **Due-soon invoices are scheduler-driven.** After signing, only invoices due within the
+  advance window (default 7 days, `INVOICE_ADVANCE_DAYS`) exist until a payment starts; starting
+  a payment generates the active agreement's remaining rent invoices on demand.
 - **Prepayment notices are per-agreement.** If an agreement has several prepaid payments,
   reminders use the furthest `prepaidThrough`.
 - **Mock integrations.** SMS, Telebirr, and Telegram run in mock mode. Real delivery needs
