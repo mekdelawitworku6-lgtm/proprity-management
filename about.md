@@ -107,6 +107,9 @@ same API, the same database, and the same features described in this document.
   properties, record payments, manage complaints, and so on (14 separate permissions).
 - **Vendors and work orders.** Keep a list of trusted plumbers, electricians, cleaners, and others,
   assign them to jobs, and track the job until it is done.
+- **Inspections and deposit refunds.** Schedule move-in and move-out checks, record a photo-backed
+  condition checklist, and take a security deposit from prepared to approved to paid with every
+  deduction tied to a completed move-out inspection.
 - **Reports.** Owner statements, payment reports, and rent rolls can be generated as Excel or PDF.
 - **A clear activity log.** Every important action is recorded in an append-only trail, so the owner
   can always see who did what and when.

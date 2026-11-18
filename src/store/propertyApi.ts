@@ -10,9 +10,17 @@ import type {
   ComplaintListItem,
   ComplaintResponseEntry,
   ComplaintStatus,
+  CompleteInspectionPayload,
   CreateComplaintPayload,
+  CreateDepositRefundPayload,
+  CreateInspectionPayload,
   CreatePropertyPayload,
+  DecideDepositRefundPayload,
+  DepositRefundFilter,
+  DepositRefundRecord,
   CreateStaffPayload,
+  InspectionFilter,
+  InspectionSummary,
   ManagerPermission,
   OwnerAuditFilter,
   OwnerBalances,
@@ -20,6 +28,7 @@ import type {
   Paginated,
   PaymentFilter,
   PaymentPage,
+  PayDepositRefundPayload,
   PaymentRecord,
   Property,
   PropertyBase,
@@ -136,6 +145,83 @@ export const propertyApi = api.injectEndpoints({
         const form = new FormData()
         for (const file of files) form.append('files', file)
         return { url: '/files/upload/properties', method: 'POST', body: form }
+      },
+      transformResponse: unwrapEnvelope,
+    }),
+  }),
+  overrideExisting: false,
+})
+
+export const inspectionsApi = api.injectEndpoints({
+  endpoints: (builder) => ({
+    getInspections: builder.query<Paginated<InspectionSummary>, InspectionFilter | void>({
+      query: (filter) => ({ url: '/inspections', params: filter ?? {} }),
+      transformResponse: unwrapEnvelope,
+      providesTags: (result) => [
+        { type: 'Inspection' as const, id: 'LIST' },
+        ...(result?.docs.map((inspection) => ({ type: 'Inspection' as const, id: inspection.id })) ?? []),
+      ],
+    }),
+
+    createInspection: builder.mutation<InspectionSummary, CreateInspectionPayload>({
+      query: (body) => ({ url: '/inspections', method: 'POST', body }),
+      transformResponse: unwrapEnvelope,
+      invalidatesTags: ['Inspection', 'Agreement'],
+    }),
+
+    completeInspection: builder.mutation<InspectionSummary, { id: string; body: CompleteInspectionPayload }>({
+      query: ({ id, body }) => ({ url: `/inspections/${id}/complete`, method: 'POST', body }),
+      transformResponse: unwrapEnvelope,
+      invalidatesTags: (_result, _error, { id }) => [
+        { type: 'Inspection' as const, id },
+        { type: 'Inspection' as const, id: 'LIST' },
+      ],
+    }),
+
+    cancelInspection: builder.mutation<InspectionSummary, string>({
+      query: (id) => ({ url: `/inspections/${id}/cancel`, method: 'PATCH' }),
+      transformResponse: unwrapEnvelope,
+      invalidatesTags: ['Inspection', 'Agreement'],
+    }),
+
+    getDepositRefunds: builder.query<Paginated<DepositRefundRecord>, DepositRefundFilter | void>({
+      query: (filter) => ({ url: '/deposit-refunds', params: filter ?? {} }),
+      transformResponse: unwrapEnvelope,
+      providesTags: (result) => [
+        { type: 'DepositRefund' as const, id: 'LIST' },
+        ...(result?.docs.map((refund) => ({ type: 'DepositRefund' as const, id: refund.id })) ?? []),
+      ],
+    }),
+
+    createDepositRefund: builder.mutation<DepositRefundRecord, CreateDepositRefundPayload>({
+      query: (body) => ({ url: '/deposit-refunds', method: 'POST', body }),
+      transformResponse: unwrapEnvelope,
+      invalidatesTags: ['DepositRefund', 'Agreement'],
+    }),
+
+    approveDepositRefund: builder.mutation<DepositRefundRecord, { id: string; body: DecideDepositRefundPayload }>({
+      query: ({ id, body }) => ({ url: `/deposit-refunds/${id}/approve`, method: 'POST', body }),
+      transformResponse: unwrapEnvelope,
+      invalidatesTags: ['DepositRefund'],
+    }),
+
+    payDepositRefund: builder.mutation<DepositRefundRecord, { id: string; body: PayDepositRefundPayload }>({
+      query: ({ id, body }) => ({ url: `/deposit-refunds/${id}/pay`, method: 'POST', body }),
+      transformResponse: unwrapEnvelope,
+      invalidatesTags: ['DepositRefund', 'Dashboard'],
+    }),
+
+    rejectDepositRefund: builder.mutation<DepositRefundRecord, { id: string; body: DecideDepositRefundPayload }>({
+      query: ({ id, body }) => ({ url: `/deposit-refunds/${id}/reject`, method: 'POST', body }),
+      transformResponse: unwrapEnvelope,
+      invalidatesTags: ['DepositRefund'],
+    }),
+
+    uploadInspectionPhotos: builder.mutation<UploadedFile[], File[]>({
+      query: (files) => {
+        const form = new FormData()
+        for (const file of files) form.append('files', file)
+        return { url: '/files/upload/inspections', method: 'POST', body: form }
       },
       transformResponse: unwrapEnvelope,
     }),
@@ -364,6 +450,16 @@ export const {
   useGetAgreementsQuery,
   useGetAgreementQuery,
   useRenewAgreementMutation,
+  useGetInspectionsQuery,
+  useCreateInspectionMutation,
+  useCompleteInspectionMutation,
+  useCancelInspectionMutation,
+  useGetDepositRefundsQuery,
+  useCreateDepositRefundMutation,
+  useApproveDepositRefundMutation,
+  usePayDepositRefundMutation,
+  useRejectDepositRefundMutation,
+  useUploadInspectionPhotosMutation,
   useGetOwnerBalancesQuery,
   useGetPaymentsQuery,
   useRecordOfflinePaymentMutation,
@@ -384,4 +480,4 @@ export const {
   useGetMyActivityQuery,
   useGetPlatformAuditLogsQuery,
   useGetAdminDashboardQuery,
-} = { ...authApi, ...propertyApi, ...complaintsApi, ...billingApi, ...teamApi, ...activityApi }
+} = { ...authApi, ...propertyApi, ...inspectionsApi, ...complaintsApi, ...billingApi, ...teamApi, ...activityApi }

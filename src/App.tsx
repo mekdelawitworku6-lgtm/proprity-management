@@ -14,6 +14,7 @@ import OwnerProperties from './pages/owner/OwnerProperties'
 import OwnerTenants from './pages/owner/OwnerTenants'
 import OwnerAgreements from './pages/owner/OwnerAgreements'
 import OwnerComplaints from './pages/owner/OwnerComplaints'
+import OwnerInspections from './pages/owner/OwnerInspections'
 import OwnerPayments from './pages/owner/OwnerPayments'
 import { OwnerStaff } from './pages/owner/OwnerStaff'
 import { OwnerActivity } from './pages/owner/OwnerActivity'
@@ -90,6 +91,7 @@ function App() {
           <Route path="tenants" element={<OwnerTenants />} />
           <Route path="agreements" element={<OwnerAgreements />} />
           <Route path="complaints" element={<OwnerComplaints />} />
+          <Route path="inspections" element={<OwnerInspections />} />
           <Route path="payments" element={<OwnerPayments />} />
           <Route path="staff" element={<OwnerStaff />} />
           <Route path="activity" element={<OwnerActivity />} />

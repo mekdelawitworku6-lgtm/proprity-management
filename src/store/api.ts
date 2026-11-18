@@ -63,6 +63,8 @@ export const api = createApi({
     'AdminUser',
     'Notification',
     'Agreement',
+    'Inspection',
+    'DepositRefund',
     'Balance',
     'Complaint',
     'Payment',

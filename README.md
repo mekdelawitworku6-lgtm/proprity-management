@@ -677,6 +677,18 @@ Authenticated routes need `Authorization: Bearer <accessToken>`.
 | PATCH | `/agreements/:id/cancel` | owner | |
 | POST | `/agreements/:id/documents` | owner | Attach a document |
 
+### Inspections & deposits — `/inspections`, `/deposit-refunds`
+
+| Method | Path | Who | Notes |
+|---|---|---|---|
+| POST · GET | `/inspections` | owner/manager (POST) · scoped (GET) | Schedule move-in/move-out checks with photo checklist |
+| GET | `/inspections/:id` | scoped | Full inspection record |
+| POST | `/inspections/:id/complete` | owner/manager | Record checklist results, after photos and notes |
+| PATCH | `/inspections/:id/cancel` | owner/manager | Cancel a scheduled inspection |
+| POST · GET | `/deposit-refunds` | owner/manager (POST) · scoped (GET) | Prepare refund; deductions need a completed move-out inspection |
+| GET | `/deposit-refunds/:id` | scoped | Full refund trail |
+| POST | `/deposit-refunds/:id/approve` · `/pay` · `/reject` | owner/manager | Approval → payment workflow with tenant notifications |
+
 ### Billing — `/invoices`, `/payments`, `/payouts`, `/expenses`
 
 | Method | Path | Who | Notes |
@@ -747,7 +759,7 @@ Authenticated routes need `Authorization: Bearer <accessToken>`.
 | GET | `/notifications` | any | Paginated, `?unreadOnly=` |
 | GET | `/notifications/unread-count` | any | Badge count |
 | PATCH | `/notifications/:id/read` · `/notifications/read-all` | any | |
-| POST | `/files/upload/:folder` | any | Property/complaint photos |
+| POST | `/files/upload/:folder` | any | Property, complaint, agreement, receipt, work-order, KYC and inspection photos |
 | GET | `/sync` | any | Offline-sync delta feed |
 | GET | `/health` | public | Liveness + DB check |
 
@@ -789,6 +801,9 @@ When a module gains a feature, add scenarios to its e2e suite in
 
 | Change | Why |
 |---|---|
+| Move-in/move-out inspection checklists with photo evidence | Document unit condition at handover and checkout instead of relying on memory or chat threads |
+| Security-deposit refund workflow with deductions tied to completed move-out inspections | Gives owners a defensible trail and tenants a clear approval/payment status |
+| Owner "Inspections & Deposits" workspace | Schedules inspections, completes checklists and drives refund approval/payment from the dashboard |
 | Rent invoices generated on demand when a payment starts | 6/12-month prepayment works immediately instead of waiting for the daily scheduler |
 | Working Excel/PDF downloads wired to `/reports` | Export buttons no longer show placeholder alerts; a shared auth-aware blob helper triggers real browser downloads |
 | Report generators for agreement registry, audit trail and single-agreement certificate | The remaining export buttons now produce real files from the same Excel/PDF renderer |

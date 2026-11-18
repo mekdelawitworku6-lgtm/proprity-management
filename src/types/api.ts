@@ -428,6 +428,121 @@ export interface AgreementFilter {
   tenantId?: string
 }
 
+export type InspectionType = 'MOVE_IN' | 'MOVE_OUT'
+export type InspectionStatus = 'SCHEDULED' | 'COMPLETED' | 'CANCELLED'
+export type DepositRefundStatus = 'PENDING' | 'APPROVED' | 'PAID' | 'REJECTED'
+
+export interface InspectionItem {
+  label: string
+  ok: boolean
+  note?: string
+}
+
+export interface InspectionSummary {
+  id: string
+  referenceNo: string
+  agreementId: string
+  propertyId: string
+  unitId: string
+  ownerId: string
+  tenantId: string
+  type: InspectionType
+  status: InspectionStatus
+  scheduledAt: string | null
+  completedAt: string | null
+  conductedById: string | null
+  items: InspectionItem[] | null
+  photos: string[]
+  notes: string | null
+  createdAt: string
+  agreement: {
+    id: string
+    referenceNo: string
+    status: AgreementStatus
+    endDate: string
+    property: { id: string; name: string }
+    unit: { id: string; unitNumber: string }
+  }
+  tenant: AgreementPartyRef
+  conductedBy: { id: string; fullName: string } | null
+}
+
+export interface InspectionFilter {
+  page?: number
+  limit?: number
+  type?: InspectionType
+  status?: InspectionStatus
+  agreementId?: string
+}
+
+export interface CreateInspectionPayload {
+  agreementId: string
+  type: InspectionType
+  scheduledAt?: string
+  items?: InspectionItem[]
+  photos?: string[]
+  notes?: string
+  clientRef?: string
+}
+
+export interface CompleteInspectionPayload {
+  items?: InspectionItem[]
+  photos?: string[]
+  notes?: string
+}
+
+export interface DepositRefundRecord {
+  id: string
+  referenceNo: string
+  agreementId: string
+  propertyId: string
+  unitId: string
+  ownerId: string
+  tenantId: string
+  inspectionId: string | null
+  depositAmount: number
+  deductions: number
+  refundAmount: number
+  status: DepositRefundStatus
+  notes: string | null
+  providerReference: string | null
+  paidAt: string | null
+  createdAt: string
+  agreement: {
+    id: string
+    referenceNo: string
+    status: AgreementStatus
+    property: { id: string; name: string }
+    unit: { id: string; unitNumber: string }
+  }
+  tenant: AgreementPartyRef
+  inspection: { id: string; referenceNo: string; type: InspectionType; status: InspectionStatus } | null
+}
+
+export interface DepositRefundFilter {
+  page?: number
+  limit?: number
+  status?: DepositRefundStatus
+  agreementId?: string
+}
+
+export interface CreateDepositRefundPayload {
+  agreementId: string
+  inspectionId?: string
+  deductions?: number
+  notes?: string
+  clientRef?: string
+}
+
+export interface DecideDepositRefundPayload {
+  notes?: string
+}
+
+export interface PayDepositRefundPayload {
+  providerReference?: string
+  notes?: string
+}
+
 /** Tenant credit is what a tenant OWES; there is no prepaid/credit field in the API. */
 export interface TenantBalance {
   tenant: AgreementPartyRef
